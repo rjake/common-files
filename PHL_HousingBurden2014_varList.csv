@@ -1,0 +1,27 @@
+Var,Variable,Income,Measure,floorIncome
+HD01_VD01,Total,All,Total,
+HD01_VD02,Owner-occupied housing units,All,Total,
+HD01_VD03,Owner-occupied housing units,"$1 to $20,000",Total,1
+HD01_VD06,Owner-occupied housing units,"$1 to $20,000",Burden,1
+HD01_VD07,Owner-occupied housing units,"$20,000 to $34,999",Total,20
+HD01_VD10,Owner-occupied housing units,"$20,000 to $34,999",Burden,20
+HD01_VD11,Owner-occupied housing units,"$35,000 to $49,999",Total,35
+HD01_VD14,Owner-occupied housing units,"$35,000 to $49,999",Burden,35
+HD01_VD15,Owner-occupied housing units,"$50,000 to $74,999",Total,50
+HD01_VD18,Owner-occupied housing units,"$50,000 to $74,999",Burden,50
+HD01_VD19,Owner-occupied housing units,"$75,000 or more",Total,75
+HD01_VD22,Owner-occupied housing units,"$75,000 or more",Burden,75
+HD01_VD23,Owner-occupied housing units,Zero or negative income,Total,
+HD01_VD24,Renter-occupied housing units,All,Total,
+HD01_VD25,Renter-occupied housing units,"$1 to $20,000",Total,1
+HD01_VD28,Renter-occupied housing units,"$1 to $20,000",Burden,1
+HD01_VD29,Renter-occupied housing units,"$20,000 to $34,999",Total,20
+HD01_VD32,Renter-occupied housing units,"$20,000 to $34,999",Burden,20
+HD01_VD33,Renter-occupied housing units,"$35,000 to $49,999",Total,35
+HD01_VD36,Renter-occupied housing units,"$35,000 to $49,999",Burden,35
+HD01_VD37,Renter-occupied housing units,"$50,000 to $74,999",Total,50
+HD01_VD40,Renter-occupied housing units,"$50,000 to $74,999",Burden,50
+HD01_VD41,Renter-occupied housing units,"$75,000 or more",Total,75
+HD01_VD44,Renter-occupied housing units,"$75,000 or more",Burden,75
+HD01_VD45,Renter-occupied housing units,Zero or negative income,Total,
+HD01_VD46,Renter-occupied housing units,No cash rent,Total,
