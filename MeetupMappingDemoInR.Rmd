@@ -1,0 +1,164 @@
+---
+title: "Meetup Map Demo"
+author: "Jake"
+date: "February 24, 2016"
+output: html_document
+---
+**Set up workspace**
+  
+```{r message=FALSE, warning=F}
+    library(dplyr)    # data manipulation
+    library(tidyr)    # data manipulation - gather/spread functions
+    library(ggplot2)  # data viz
+    library(ggmap)    # data viz (maps)
+    library(RCurl)    # get data from URLs
+    library(knitr)    # make nicer tables in html
+    
+    options(scipen = 999) # turns off scientific notation
+```
+
+**Get data to map**
+
+To assign a data table, a variable, a map, a function, etc. you use the ```<-```  symbollization. In the earlier days people used an "=" sign but this is now the accepted convention. The command ```getURL``` retrieves data from the github site. I then use piping ```%>%``` to connect ```dplyr``` commands to read the data from ```getURL``` as a csv with the ```read.csv``` command. My data has headers and use the "stringsAsFactors=FALSE" for now to save yourself from confusion. Lastly, I have the ```dplyr``` chain result in a data.frame by using ```as.data.frame()```
+    
+```{r}
+    #Get Census Data
+      acsData  <- getURL("https://raw.githubusercontent.com/rjake/CommonFiles/master/PHL_HousingBurden2014.csv")%>%
+        read.csv(text=., header = TRUE, stringsAsFactors = FALSE)%>%
+        as.data.frame()
+    
+    #Get Variables
+      acsVarList  <- getURL("https://raw.githubusercontent.com/rjake/CommonFiles/master/PHL_HousingBurden2014_varList.csv")%>%
+        read.csv(text=., header = TRUE, stringsAsFactors = FALSE)%>%
+        as.data.frame()
+```
+
+**Get census tract borders** (as .csv) & create basic maps
+
+[This tutorial](http://www.kevjohnson.org/making-maps-in-r) shows you how to turn a shapefile to a data frame. You will need the ```rgdal``` library. In this step, the ```mutate``` command creates a new column (actually replaces the current one) that is a character version of "id" in this data.frame
+    
+```{r warning=F}
+    #Get tract borders
+      ggtract <- getURL("https://raw.githubusercontent.com/rjake/FinalProject/master/ggtract.csv")%>%
+        read.csv(text=., header = TRUE, stringsAsFactors = FALSE)%>%
+          as.data.frame()%>%
+        mutate(id=as.character(id))
+```
+
+**Create map**
+
+You always call ```ggplot()``` and then some geom_... (ex: ```geom_polygon()```, ```geom_line()```, ```geom_point()```, ```geom_bar()```, ...).  To create a map you need to specify the x & y coordinates and what variable makes each polygon unique. You do this by using ```aes(x=, y=, group=)``` argument in the ```geom_polygon()``` command. If the colors of the polygons or colors of the borders vary based on values in the data, put them inside ```aes()```. If the color/fill is to be constant to all polygons, put them outside the ```aes()``` but still within the ```geom_polygn()``` command. Use the ```+``` sign to chain commands for creating the map together
+
+```{r warning=F, fig.align="center"}  
+      ggplot()+
+          geom_polygon(data=ggtract, aes(x=long, y=lat, group=group), color="black", fill="gray95")+
+          coord_fixed()+
+          theme_nothing()
+      
+      #get table of census tracts with "neighborhood" IDs
+        neighborhoods <- getURL("https://raw.githubusercontent.com/rjake/CommonFiles/master/PhillyCentroidsWGS84.csv")%>%
+          read.csv(text=., header = TRUE, stringsAsFactors = FALSE)%>%
+            as.data.frame()%>%
+          select(GEOID10,SECTION)%>%
+          mutate(id=as.character(GEOID10))
+      
+      #Add neighborhoods to map
+        Philly <- left_join(ggtract, neighborhoods, by="id")
+      
+      #Make map of neighborhoods
+        ggplot()+
+          geom_polygon(data=Philly, 
+                       aes(x=long, y=lat, group=group, fill=SECTION), 
+                            #fill goes inside aes() because it changes based on value in the data
+                       color="black")+ 
+                          #color stays outside because the black border applies to all census tracts
+          coord_fixed()+
+          theme_nothing(legend = T)
+```
+
+
+**Look at Percentage across income brackets**
+
+```{r warning=F, fig.align="center"}
+    #Create a table
+    acsData%>%
+      gather(key=Var, value=Pop, -GEOID)%>%    #convert to long form
+      left_join(acsVarList, by="Var")%>%       #bring in VarList
+      group_by(Income, Measure)%>%             #group by Income/Measure and sum(Pop)
+      summarise(Pop=sum(Pop))%>%
+      spread(key=Measure, value=Pop)%>%        #Convert back to Wide form
+      ungroup()%>%                             #ungroup
+      mutate(PctBurden=round(Burden/Total*100,2))%>%      #add a column that calculates the % of Burden/Total
+      kable(align='r', format.args = list(big.mark=","))  #not necessary, used to make html/word output easier to read
+        
+
+```
+
+
+**Convert to long form for ggplot2 maps facetting**
+
+Create data to map income levels
+
+```{r fig.width=1, warning=F}
+    mapACS <- acsData%>%    #Use ACSData
+      gather(key=Var, value=Pop, -GEOID)%>%     #convert to long form
+      left_join(acsVarList, by="Var")%>%        #bring in variable IDs
+      filter(!is.na(floorIncome))%>%            #!is.na means "is not NA"
+      group_by(GEOID, Income, floorIncome, Measure)%>%  #select these columns to aggregate data then sum(Pop)
+        summarise(Pop=sum(Pop))%>%                         
+      ungroup()%>%                              #turn off grouping feature
+      mutate(id=as.character(GEOID))%>%         #create column called "id", that is a "as.character" version of the FIPS code (GEOID)
+      select(-GEOID)%>%                         #Drop the column "GEOID"
+      left_join(Philly, by="id")                #Join neighborhoods labels to census tract IDs
+```
+
+***Make Maps of all income categories***
+
+```{r warning=F, fig.align="center"}
+    ggplot()+
+      geom_polygon(data=Philly, aes(long,lat,group=id), color="grey80", fill="white", size=.5)+  #base map
+      geom_polygon(data=mapACS, aes(x=long, y=lat, group=id, fill=Pop))+                  #map with totals
+      scale_fill_gradient(low="white", high="navyblue")+           #Specifies colors for map aes(fill=Pop)
+      coord_fixed()+                  #aspect ratio (x:y always fixed)
+      facet_grid(Measure~Income)+     #Measure categories go down right side, Income categories across the top
+      theme_nothing(legend = T)       #Removes backgrounds, axis ticks, gridlines, etc; leaves legend
+```  
+
+***Map just population  with income < $35K***
+
+```{r warning=F}
+    #Set up data
+      burdenLT35 <- acsData%>%                 #these staps same as mapACS introsteps
+        gather(key=Var, value=Pop, -GEOID)%>%
+        left_join(acsVarList, by="Var")%>%  
+        mutate(id=as.character(GEOID))%>%
+        filter(!is.na(floorIncome))%>% 
+        filter(floorIncome < 35)%>%            #filter where "floor income is less than 35"
+        group_by(id, Measure)%>%               #group by id & measure and sum(Pop)
+          summarize(Pop=sum(Pop))%>%
+        ungroup()%>% 
+        left_join(Philly, by="id")
+```
+
+This step puts the parts of town in a particular order. "factor" allows a categorical variable to act like an ordinal variable. The $ sign indicates the column name (```burdenLT35$SECTION``` means the "burdenLT35"" table, column "SECTION") and the command ```factor(...)``` applies to the whole column
+
+```{r}
+    burdenLT35$SECTION <- factor(burdenLT35$SECTION,
+                                             levels=c("NorthWest", "FrankfordKennsington","NorthEast",
+                                                      "SouthWest", "CenterCity","SouthPhilly"), ordered = TRUE)
+```
+
+Use the SECTION column to create a grid by Philly neighborhoods. Because I want the measure to double across the top I use ```facet_wrap()``` with the argument ```(... ncol=6)```
+
+```{r warning=F, fig.align="center"}
+    #Create map
+      ggplot()+
+        geom_polygon(data=burdenLT35, aes(x=long, y=lat, group=id, fill=Pop), color="grey80", size=.5)+ 
+        scale_fill_gradient(low="white", high="navyblue")+
+        coord_fixed()+
+        facet_wrap(Measure~SECTION, scales="free", ncol=6)+
+        theme_nothing(legend = T)+
+        ggtitle("Number of People with Incomes < $35,000 who are Burdened by Housing Costs")+
+        theme(plot.title = element_text(hjust = .2,size=10),
+              panel.background = element_rect(fill = "white"))
+```
