@@ -169,6 +169,7 @@ Use the SECTION column to create a grid by Philly neighborhoods. Because I want 
 ```
 
 ***TIPS***
+
 * For both the ```dplyr``` and ```ggplot``` data, you can go line by line to see what each line does by not selecting the pipe in the last row you wish to run. For example: ```iris %>% select(Species) %>% distinct()``` You can run ```iris %>% select(Species)``` to see what it does before running the following line.
 
 * When looking at help (ex:[StackOverflow](http://stackoverflow.com/questions/tagged/r)), people will use 'df', 'dat', 'mydata' to talk about your data. If something has brackets, like ```dat[,]``` it is a data frame and you should fill in 'dat' with your data. If it has parenthese, like ```seq()``` it is a command and you should use the command they give you. Also, those people are fast at responding and incredibly helpful. Don't be afraid to ask a newbie question. It's part of the learning process and they are happy to help.
