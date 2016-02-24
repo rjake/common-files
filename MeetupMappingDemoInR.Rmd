@@ -19,16 +19,18 @@ output: html_document
 
 **Get data to map**
 
-To assign a data table, a variable, a map, a function, etc. you use the ```<-```  symbollization. In the earlier days people used an "=" sign but this is now the accepted convention. The command ```getURL``` retrieves data from the github site. I then use piping ```%>%``` to connect ```dplyr``` commands to read the data from ```getURL``` as a csv with the ```read.csv``` command. My data has headers and use the "stringsAsFactors=FALSE" for now to save yourself from confusion. Lastly, I have the ```dplyr``` chain result in a data.frame by using ```as.data.frame()```
+To assign a data table, a variable, a map, a function, etc. you use the ```<-```  symbollization. In the earlier days people used an "=" sign but this is now the accepted convention. The command ```getURL``` retrieves data from the github site. I then use piping ```%>%``` to connect ```dplyr``` commands to read the data from ```getURL``` as a csv with the ```read.csv``` command. My data has headers and use the "stringsAsFactors=FALSE" for now to save yourself from confusion. Lastly, I have the ```dplyr``` chain result in a data.frame by using ```as.data.frame()```. ```ggplot()``` uses a similar piping, but for this it is a "+" sign and adds elements to your map. 
     
 ```{r}
     #Get Census Data
-      acsData  <- getURL("https://raw.githubusercontent.com/rjake/CommonFiles/master/PHL_HousingBurden2014.csv")%>%
-        read.csv(text=., header = TRUE, stringsAsFactors = FALSE)%>%
-        as.data.frame()
+      acsData  <- 
+      getURL("https://raw.githubusercontent.com/rjake/CommonFiles/master/PHL_HousingBurden2014.csv")%>%
+        read.csv(text=., header = TRUE, stringsAsFactors = FALSE)%>%  # the dot means "this data" in the pipe
+        as.data.frame()                                               
     
     #Get Variables
-      acsVarList  <- getURL("https://raw.githubusercontent.com/rjake/CommonFiles/master/PHL_HousingBurden2014_varList.csv")%>%
+      acsVarList  <- 
+        getURL("https://raw.githubusercontent.com/rjake/CommonFiles/master/PHL_HousingBurden2014_varList.csv")%>%
         read.csv(text=., header = TRUE, stringsAsFactors = FALSE)%>%
         as.data.frame()
 ```
@@ -39,7 +41,8 @@ To assign a data table, a variable, a map, a function, etc. you use the ```<-```
     
 ```{r warning=F}
     #Get tract borders
-      ggtract <- getURL("https://raw.githubusercontent.com/rjake/FinalProject/master/ggtract.csv")%>%
+      ggtract <- 
+        getURL("https://raw.githubusercontent.com/rjake/FinalProject/master/ggtract.csv")%>%
         read.csv(text=., header = TRUE, stringsAsFactors = FALSE)%>%
           as.data.frame()%>%
         mutate(id=as.character(id))
@@ -52,18 +55,19 @@ You always call ```ggplot()``` and then some geom_... (ex: ```geom_polygon()```,
 ```{r warning=F, fig.align="center"}  
       ggplot()+
           geom_polygon(data=ggtract, aes(x=long, y=lat, group=group), color="black", fill="gray95")+
-          coord_fixed()+
-          theme_nothing()
+          coord_fixed()+   #keeps aspect ration between x:y
+          theme_nothing()  #removes gridlines, axis labels, etc
       
       #get table of census tracts with "neighborhood" IDs
-        neighborhoods <- getURL("https://raw.githubusercontent.com/rjake/CommonFiles/master/PhillyCentroidsWGS84.csv")%>%
+        neighborhoods <- 
+          getURL("https://raw.githubusercontent.com/rjake/CommonFiles/master/PhillyCentroidsWGS84.csv")%>%
           read.csv(text=., header = TRUE, stringsAsFactors = FALSE)%>%
-            as.data.frame()%>%
-          select(GEOID10,SECTION)%>%
-          mutate(id=as.character(GEOID10))
+          as.data.frame()%>%
+          select(GEOID10,SECTION)%>%        #Drop all columns but these 2
+          mutate(id=as.character(GEOID10))  #create column "id" as a "as.character" version of (GEOID)
       
       #Add neighborhoods to map
-        Philly <- left_join(ggtract, neighborhoods, by="id")
+        Philly <- left_join(ggtract, neighborhoods, by="id") #join both data frames by the "id" column
       
       #Make map of neighborhoods
         ggplot()+
@@ -78,15 +82,15 @@ You always call ```ggplot()``` and then some geom_... (ex: ```geom_polygon()```,
 
 
 **Look at Percentage across income brackets**
-
+Gather & Spread commands: These commands are in the ```tidyr``` library. ```gather()``` takes all of the column names, in this case, everything but 'GEOID' ```gather(..., -GEOID)``` and puts the column names in a column called Var ```gather(key=Var, ...)``` and the values in that column in an adjacent column called 'Pop' ```gather(..., value=Pop,...)```. ```spread()``` then transforms the data from long to wide where the unique values of one column, in this case 'Measure' ```spread(key=Measure,...)``` become new column headers and the values in another column, in this case Pop ```spread(..., value=Pop)``` become the values in those columns.
 ```{r warning=F, fig.align="center"}
     #Create a table
     acsData%>%
-      gather(key=Var, value=Pop, -GEOID)%>%    #convert to long form
+      gather(key=Var, value=Pop, -GEOID)%>%    #convert to long form everything but the GEOID column
       left_join(acsVarList, by="Var")%>%       #bring in VarList
-      group_by(Income, Measure)%>%             #group by Income/Measure and sum(Pop)
-      summarise(Pop=sum(Pop))%>%
-      spread(key=Measure, value=Pop)%>%        #Convert back to Wide form
+      group_by(Income, Measure)%>%             #group by Income category and Measure (total or burden #s) 
+      summarise(Pop=sum(Pop))%>%                  # then sum(Pop)
+      spread(key=Measure, value=Pop)%>%        #Convert back to Wide form using the Measure & Pop columns
       ungroup()%>%                             #ungroup
       mutate(PctBurden=round(Burden/Total*100,2))%>%      #add a column that calculates the % of Burden/Total
       kable(align='r', format.args = list(big.mark=","))  #not necessary, used to make html/word output easier to read
@@ -107,7 +111,7 @@ Create data to map income levels
       group_by(GEOID, Income, floorIncome, Measure)%>%  #select these columns to aggregate data then sum(Pop)
         summarise(Pop=sum(Pop))%>%                         
       ungroup()%>%                              #turn off grouping feature
-      mutate(id=as.character(GEOID))%>%         #create column called "id", that is a "as.character" version of the FIPS code (GEOID)
+      mutate(id=as.character(GEOID))%>%         #create column "id" as a "as.character" version of (GEOID)
       select(-GEOID)%>%                         #Drop the column "GEOID"
       left_join(Philly, by="id")                #Join neighborhoods labels to census tract IDs
 ```
@@ -150,15 +154,33 @@ This step puts the parts of town in a particular order. "factor" allows a catego
 
 Use the SECTION column to create a grid by Philly neighborhoods. Because I want the measure to double across the top I use ```facet_wrap()``` with the argument ```(... ncol=6)```
 
-```{r warning=F, fig.align="center"}
+```{r warning=F, fig.align="center", fig.width=8}
     #Create map
       ggplot()+
         geom_polygon(data=burdenLT35, aes(x=long, y=lat, group=id, fill=Pop), color="grey80", size=.5)+ 
         scale_fill_gradient(low="white", high="navyblue")+
-        coord_fixed()+
-        facet_wrap(Measure~SECTION, scales="free", ncol=6)+
+        facet_wrap(SECTION~Measure, scales="free", ncol=6)+
         theme_nothing(legend = T)+
         ggtitle("Number of People with Incomes < $35,000 who are Burdened by Housing Costs")+
-        theme(plot.title = element_text(hjust = .2,size=10),
-              panel.background = element_rect(fill = "white"))
+        theme(plot.title = element_text(hjust = .2,size=10),    #Aligns the title
+              strip.text = element_text(size = 8),              #Makes the panel titles size 8 font
+              panel.background = element_rect(fill = "white"),  #makes the area behind the map white 
+              aspect.ratio=1)                                   #Similar to coord_fixed when using facet_wrap
 ```
+
+***TIPS***
+* For both the ```dplyr``` and ```ggplot``` data, you can go line by line to see what each line does by not selecting the pipe in the last row you wish to run. For example: ```iris %>% select(Species) %>% distinct()``` You can run ```iris %>% select(Species)``` to see what it does before running the following line.
+
+* When looking at help (ex:[StackOverflow](http://stackoverflow.com/questions/tagged/r)), people will use 'df', 'dat', 'mydata' to talk about your data. If something has brackets, like ```dat[,]``` it is a data frame and you should fill in 'dat' with your data. If it has parenthese, like ```seq()``` it is a command and you should use the command they give you. Also, those people are fast at responding and incredibly helpful. Don't be afraid to ask a newbie question. It's part of the learning process and they are happy to help.
+
+* The example I made did not require files on my computer. If you are working with local files, be sure to use ```setwd("C:/Users/user1/Desktop")``` note that this must use *forward slashes* and not back slashes. To grab something in another folder you can move backwards with "../" in the path name, for example: ```read.csv("../example.csv")```
+
+* Always record your process in the Source window, not the console. You can use the console to test your code but the stuff you want to repeat should be in the Source. This script is saves as a .Rmd so that I can turn it into .html, .docx, or a .pdf. You can also use .R and create all comments with the "#" sign.
+
+* To run a line of code you can just hit ```Ctrl+Enter``` or on macs, ```Command+Enter``` as long as your cursor is in that row.
+
+* Your commands do not have to be written all on the same line. R knows if the command is finished or not, are all parentheses closed? Is there a comma that doesn't have anything written after it. You can break up your code across lines in order to make it easier to read.
+
+* To clear out the output of the console, hit ```Ctrl+L``` or ```Command+L```
+
+I hope this was helpful. Please reach out if you have questions: (rjake@sas.upenn.edu)
