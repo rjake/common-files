@@ -19,7 +19,7 @@ output: html_document
 
 **Get data to map**
 
-To assign a data table, a variable, a map, a function, etc. you use the ```<-```  symbollization. In the earlier days people used an "=" sign but this is now the accepted convention. The command ```getURL``` retrieves data from the github site. I then use piping ```%>%``` to connect ```dplyr``` commands to read the data from ```getURL``` as a csv with the ```read.csv``` command. My data has headers and use the "stringsAsFactors=FALSE" for now to save yourself from confusion. Lastly, I have the ```dplyr``` chain result in a data.frame by using ```as.data.frame()```. ```ggplot()``` uses a similar piping, but for this it is a "+" sign and adds elements to your map. 
+To assign a data table, a variable, a map, a function, etc. you use the ```<-```  symbollization. In the earlier days people used an "=" sign but this is now the accepted convention. The command ```getURL``` retrieves data from the github site. I then use piping ```%>%``` to connect ```dplyr``` commands to read the data from ```getURL``` as a csv with the ```read.csv``` command. My data has headers and use the "stringsAsFactors=FALSE" for now to save yourself from confusion. Lastly, I have the ```dplyr``` chain result in a data.frame by using ```as.data.frame()```. ```ggplot()``` uses a similar piping, but for this it is a "+" sign and adds elements to your map.
     
 ```{r}
     #Get Census Data
