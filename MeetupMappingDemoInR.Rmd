@@ -19,7 +19,7 @@ output: html_document
 
 **Get data to map**
 
-To assign a data table, a variable, a map, a function, etc. you use the ```<-```  symbollization. In the earlier days people used an "=" sign but this is now the accepted convention. The command ```getURL``` retrieves data from the github site. I then use piping ```%>%``` to connect ```dplyr``` commands to read the data from ```getURL``` as a csv with the ```read.csv``` command. My data has headers and use the "stringsAsFactors=FALSE" for now to save yourself from confusion. Lastly, I have the ```dplyr``` chain result in a data.frame by using ```as.data.frame()```. ```ggplot()``` uses a similar piping, but for this it is a "+" sign and adds elements to your map.
+To assign a data table, a variable, a map, a function, etc. you use the ```<-```  symbollization. In the earlier days people used an "=" sign but this is now the accepted convention. The command ```getURL``` retrieves data from the github site. I then use piping ```%>%``` to connect ```dplyr``` commands to read the data from ```getURL``` as a csv with the ```read.csv``` command. My data has headers and use the "stringsAsFactors=FALSE" for now to save yourself from confusion. Lastly, I have the ```dplyr``` chain result in a data.frame by using ```as.data.frame()```. ```ggplot()``` uses a similar piping, but for this it is a "+" sign and adds elements to your map. 
     
 ```{r}
     #Get Census Data
@@ -104,7 +104,7 @@ Gather & Spread commands: These commands are in the ```tidyr``` library. ```gath
 Create data to map income levels
 
 ```{r fig.width=1, warning=F}
-    mapACS <- acsData%>%    #Use ACSData
+ mapACS <- acsData%>%    #Use ACSData
       gather(key=Var, value=Pop, -GEOID)%>%     #convert to long form
       left_join(acsVarList, by="Var")%>%        #bring in variable IDs
       filter(!is.na(floorIncome))%>%            #!is.na means "is not NA"
@@ -125,7 +125,9 @@ Create data to map income levels
       scale_fill_gradient(low="white", high="navyblue")+           #Specifies colors for map aes(fill=Pop)
       coord_fixed()+                  #aspect ratio (x:y always fixed)
       facet_grid(Measure~Income)+     #Measure categories go down right side, Income categories across the top
-      theme_nothing(legend = T)       #Removes backgrounds, axis ticks, gridlines, etc; leaves legend
+      theme_nothing(legend = T)+       #Removes backgrounds, axis ticks, gridlines, etc; leaves legend
+      ggtitle("Population in Income Categories and Number of People Burdened by Housing Costs \n(Spend > 30% of Income on Housing Expenses)")+  # '\n' indicates line break
+      theme(plot.title = element_text(hjust = 0,size=12))    #Aligns the title
 ```  
 
 ***Map just population  with income < $35K***
@@ -184,4 +186,4 @@ Use the SECTION column to create a grid by Philly neighborhoods. Because I want 
 
 * To clear out the output of the console, hit ```Ctrl+L``` or ```Command+L```
 
-I hope this was helpful. Please reach out if you have questions: ***(rjake@sas.upenn.edu)***
+I hope this was helpful. Please reach out if you have questions: (rjake@sas.upenn.edu)
