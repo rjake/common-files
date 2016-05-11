@@ -1,7 +1,7 @@
 ---
 title: "data scan"
 author: "Jake"
-date: "March 17, 2016"
+date: "May 11, 2016"
 output: html_document
 ---
 
@@ -9,45 +9,59 @@ output: html_document
 1. Make sure this .Rmd file is in the folder that has your data. 
 2. Set your working directory. This is the location of the data you wish to scan. Make sure you use change the backslashes of the file location (default on Windows) to forward slashes. 
 3. If you want to do exploratory mapping, edit the chunk at the end of the script and replace "" with the name of the variables you want to map (ex: colorField = NAME  not colorfiled = "NAME")
-```{r message=F, warning=F}
+```{r message=F, warning=F, echo=F}
 library(dplyr)
 library(foreign)
 library(ggplot2)
 library(ggmap)
+library(DT)
 library(knitr)
 library(plotly)
 library(tidyr)
+library(vegan)
+library(maps)
+library(corrplot)
 ```
 
 ```{r message=F, warning=F}
-setwd("E:/Portfolio/R Tools")
+setwd("J:/Portfolio/R Tools")
 
-fileName <- "Point_map_of_dirt_bike_arrests"  # exclude extension
-fileType <- ".csv"                            # supports .csv, .dbf, .txt, be sure to include '.'
+fileName <- "Commercial_Corridors_fixed"  #exclude extension   
+fileType <- ".dbf"     # supports .csv, .dbf, .txt, be sure to include '.'
 
 #What are X & Y coord field names?
-X <- "LONGITUDE"
-Y <- "LATITUDE"
+X <- "longitude"
+Y <- "latitude"
 
 # where do you want to map? Use lower case
 area_map <- map_data("county")%>%
-              filter(region    == "maryland",
-                     subregion == "baltimore city") # or: subregion %in% c("cecil", "kent"))
+            filter(region == "pennsylvania",
+                   subregion == "philadelphia") 
+
+#for countries
+#data(world.cities)
+#area_map <- data.frame(map("world", "Tanzania", plot=FALSE)[c("x","y")])%>% 
+#            rename(long = x, lat = y)%>%mutate(subregion = "Tanzania")
 ```
+
 
 
 ### Overview of Data 
 ```{r message=F, warning=F, echo=F}
 # Read in copy of data
 data <- if (fileType == ".dbf") {
-            read.dbf(file = paste(fileName, fileType, sep=""), as.is = T)
+            read.dbf(file = paste(fileName, fileType, sep=""), as.is = T
+                     )
   
           } else if (fileType == ".csv") {
-            read.csv(file = paste(fileName, fileType, sep=""), stringsAsFactors = F, na.strings = c("NA", ""))
+            read.csv(file = paste(fileName, fileType, sep=""), stringsAsFactors = F
+                     , na.strings = c("NA", ""))
   
           } else if (fileType == ".txt") {
             read.table(file = paste(fileName, fileType, sep=""), 
-                                    header = T, sep = "\t", na.strings = "",stringsAsFactors = F)
+                                    header = T, sep = "\t", na.strings = "",
+                       stringsAsFactors = F
+                       )
             
           } else{
             print("Make sure you used a valid data type: .dbf, .csv, .txt")
@@ -55,139 +69,190 @@ data <- if (fileType == ".dbf") {
            
 
 # Get first record from data to use in example below
-oneRecord <- data.frame(t(data[1:2,]))%>%                  # transform the first 2 rows to be vertical
+oneRecord <- data.frame(t(data[1:2,]))%>% # transform the first 2 rows to be vertical
              mutate(X1 = substr(X1, start = 1, stop = 20),
                     X2 = substr(X2, start = 1, stop = 20)) # grab the first 20 characters of each field
+
+
+#Diversity index
+  divIndex <- replace(data, TRUE, lapply(data, factor))%>%
+          gather(key=Measure, value=Value)%>%
+          filter(!is.na(Value))%>%
+          group_by(Measure, Value)%>%
+            summarise(Count = n())%>%
+          group_by(Measure)%>%
+            mutate(pCat = round((Count/sum(Count))^2, 2))%>%
+          group_by(Measure)%>%
+            summarise(Index = 1-sum(pCat))%>%
+          ungroup()%>%
+          .[match(colnames(data), .$Measure),]
     
 # Analyzes records for completeness
 keepRecords <- data.frame(Name = colnames(data),
                           Class = substr(sapply(data, class), 1, 3), 
-                          MaxChar = sapply(data, function(x) max(nchar(x))),
-                          Missing = sapply(data, function(y) sum(length(which(is.na(y)))))
+                          MaxChar = sapply(data, function(x)
+                            max(nchar(as.character(x)))),
+                          Missing = sapply(data, function(y)
+                            sum(length(which(is.na(y)))))
                           ) %>%
-                mutate(pMissing = round(Missing/nrow(data), 2),
+                mutate(pMissing = round(Missing/nrow(data), 2)*100,
                        Complete = nrow(data) - Missing,
-                       pComplete = 1-pMissing,
+                       pComplete = 100-pMissing,
                        Unique = sapply(data, function(x) length(unique(x)))
                        ) %>%
-                cbind(oneRecord)
-
-kable(keepRecords)
+                cbind(divIndex[2], oneRecord)%>%
+                arrange(Class)
 ```
+
+Number of rows: `r nrow(data)`
+```{r echo=F}
+#kable(keepRecords)
+datatable(keepRecords, 
+          options = list(pageLength = nrow(keepRecords),
+                         dom = 'tip'),
+          rownames = F)
+```
+This report tells you the class and maximum character length for each column in the data. The table then tells the number and percentage of records that are missing values as well as those that are complete. The 'Unique' column tells how many unique values exist for that variable and the 'Index' uses a Gini index score to asses the diversity of the records. The last two columns 'X1' & 'X2' are the first 20 characters of rows 1 and 2 of the data you are analyzing.
 
 ###Consider Removing (% Missing > 50%)
 ```{r echo=F}
 # Suggests items to delete if the % of cases missing is > 50 percent
-kable(keepRecords %>% filter(pMissing > 0.50))
+keepRecords%>% filter(pMissing > 50) %>% kable()
+
+#ifelse(nrow(missingness) >0, kable(missingness), "No column is missing more than 50% of observations")
 ```
 
 #Quick Plots
-```{r}
+```{r warning=F, echo=F, out.width = 1000}
     classData <-  data.frame(Name=colnames(data)) %>% mutate(Class=sapply(data, class))
   
     dataColChar <- which(classData$Class=="character")
+    dataColLog  <- which(classData$Class=="logical")  
+    dataColFact <- which(classData$Class=="factor")    
     dataColInt  <- which(classData$Class=="integer")
-    dataColLog  <- which(classData$Class=="logical")
     dataColNum  <- which(classData$Class=="numeric")  
 
-   # Character data
-    cData <- select(data, dataColChar)%>%
+   #Character data
+    cData <- select(data, dataColChar, dataColFact, dataColLog)%>%
                 gather(key="Var", value = "Response",na.rm = T)%>%
                 mutate(Var=as.character(Var))%>%
                 group_by(Var, Response)%>%
                 summarise(Count = n())%>%
-                ungroup()
+                ungroup()%>%
+                arrange(Var)
     
-    ggplot(cData, aes(x=Response, y=Count))+
+  ggplot(cData, aes(x=Response, y=Count))+
       geom_bar(stat= "identity")+
-      facet_wrap(~Var, scales="free")+
-      theme(axis.text.x=element_blank())
+      facet_wrap(~Var, scales="free", ncol = 5)+
+      theme(axis.text = element_blank(),
+            axis.title = element_blank(),
+            plot.title = element_text(hjust = 0, size = 20),
+            strip.text = element_text(size = 6))+
+      ggtitle("Data Type: Text")
 
-  # Numeric data (has decimal place)
+
+  #Numeric data (has decimal place)
     nData <- select(data, c(dataColNum, dataColInt))%>%
       gather(key="Var", value = "Response", na.rm = T)%>%
       mutate(Var=as.character(Var))%>%
       group_by(Var)%>%
       mutate(SD=abs(Response/sd(Response)))%>%
-      ungroup()
+      ungroup()%>%
+      arrange(Var)
     
-    ggplot(nData, aes(y=Response, x=Var))+
+  ggplot(nData, aes(y=Response, x=Var))+
       geom_boxplot(stat = "boxplot", varwidth= T)+
-      facet_wrap(~Var, scales="free")
+      facet_wrap(~Var, scales="free", ncol = 5)+
+      theme(axis.text.x=element_blank(),
+            axis.title = element_blank(),
+            plot.title = element_text(hjust = 0, size = 20),
+            strip.text = element_text(size = 6))+
+      ggtitle("Data Type: Numeric & Integers")
 ```
 
+#Correlation Matrix 
+###(integer & numeric only)
+```{r echo=F}
+  #Correlations
+  select(data, c(dataColNum, dataColInt))%>%
+    cor(use = "complete.obs")%>%
+    corrplot.mixed(tl.cex=.5, order = "hclust", lower = "circle", upper = "number")
+    #corrplot(type="lower", order="hclust", tl.cex = .75)
+                
 
+```
+
+###Consider for Thematic Maps (Diversity Index > 0.2, Unique <=20)
+```{r echo=F}
+# Suggests items to map based on # of unique values & diversity
+kable(keepRecords %>% filter(Unique <=20, Index >.2, pMissing<50)%>%arrange(-Index))
+  
+```
 
 #CUSTOMIZED: MAPS
-###Setup function for mapping
 ```{r warning=F, echo=F} 
-# function for mapping, change XY as needed
+###Setup function for mapping
 names(data)[which(names(data) == X)] <- "X"
 names(data)[which(names(data) == Y)] <- "Y"
 
+data <- data%>%filter(X != 0, Y != 0)#%>%mutate(Size = .25)
+
 area_points <- function(colorField, sizeField, textField, title=NULL){
-                p <- ggplot() + 
-                      geom_polygon(data = area_map
-                                   , aes(long, lat, group = subregion)
-                                   , color = "black", fill = "white") + 
-                      geom_point(data = data, 
-                                   aes(x = X,  
-                                       y = Y)  
-                                  , color="black"
-                                  , shape = 21
-                                  , alpha= .1) +
+            p <- 
+            ggplot() + 
+                      geom_polygon(data = area_map, aes(long, lat, group = subregion), color = "black", fill = NA) + 
+                      geom_point(data = data, aes(x = X,  y = Y), color="black", shape = 21, alpha= .1) +
                       geom_point(data = data, 
                                    aes(x = X,  
                                        y = Y,  
-                                       color = colorField, 
+                                       color = factor(colorField), 
                                        size  = sizeField, 
                                        text  = textField)
                                  , alpha=.6) +
                       xlim(min(area_map$long), max(area_map$long)) +
                       ylim(min(area_map$lat), max(area_map$lat)) +
                       coord_fixed() +
+                      labs(fill="") +
                       theme_minimal() +
+                      theme(legend.title = element_blank())+
                       ggtitle(title)
-                ggplotly(p)
-            }
+                ggplotly(p, height = 500)
+}
+
 ```
 
+
+```{r eval = T, warning=F, error=F, out.width = 600}
 ##Create custom maps
-```{r warning=F, error=F}
-# Use fields from data to replace the "" sign
-# Example:
-#  with(data, 
-#       area_points(colorField   = AGE
-#                   , sizeField  = GLA
-#                   , textField  = NAME
-#                   , title      = "Year Established"))
+# Use fields from data after '=' sign
 
-#Will plot a blank map of all points
-with(data, area_points(colorField  = ""   # categories or values: gender, rate...
-                       , sizeField = ""   # numeric field: population, births...
-                       , textField = ""   # usually your unique identifier, not necessary
-                       , title     = "")) # give your map a title
-
-#Customized map:
-with(data, area_points(colorField = "" # replace the "" with the field name you want
-                      , sizeField = ""
-                      , textField = ""
-                      , title     = "")) # keep title within quotes
-```
-
-More examples:
-
-with(data, area_points(colorField  = STATUS  
-                       , sizeField = nProjects    
+with(data, area_points(colorField  = STAGE  
+                       , sizeField = GLA    
                        , textField = NAME    
-                       , title     = "Status of Projects"))
+                       , title     = "STAGE"))
 
-with(data, area_points(colorField  = PRIMARY_FE  
-                       , sizeField = nProjects  
-                       , textField = NAME  
-                       , title     = "Primary Feature"))
+with(data, area_points(colorField  = PHYS_CHAR  
+                       , sizeField = GLA    
+                       , textField = NAME    
+                       , title     = "PHYS_CHAR"))
 
-with(data, area_points(colorField  = WATERSHED  
-                       , sizeField = nProjects  
-                       , textField = NAME  
-                       , title     = "Watershed"))
+with(data, area_points(colorField  = COND_PUB  
+                       , sizeField = GLA    
+                       , textField = NAME    
+                       , title     = "COND_PUB"))
+
+with(data, area_points(colorField  = SURVEY_YEA  
+                       , sizeField = GLA    
+                       , textField = NAME    
+                       , title     = "SURVEY_YEA"))
+
+with(data, area_points(colorField  = P_DIST  
+                       , sizeField = GLA    
+                       , textField = NAME    
+                       , title     = "P_DIST"))
+
+with(data, area_points(colorField  = STORE_MIX  
+                       , sizeField = GLA    
+                       , textField = NAME    
+                       , title     = "STORE_MIX"))
+```
