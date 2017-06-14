@@ -1,0 +1,211 @@
+---
+title: "Website Wordclouds"
+author: "Jake Riley"
+date: "April 2, 2017"
+output: ''
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.height = 5, fig.width = 4)
+```
+
+```{r}
+#install.packages(c("forcats", "tidyverse", "googlesheets", "tm", "rJava", "RWeka"))
+
+library(tidyverse)
+library(googlesheets)
+library(tm)
+#library(wordcloud)
+library(stringr)
+#https://rstudio-pubs-static.s3.amazonaws.com/118348_a00ba585d2314b3c937d6acd4f4698b0.html
+#Sys.getenv("JAVA_HOME")
+#Sys.setenv(JAVA_HOME= 'C:\\Program Files\\Java\\Java\\jre1.8.0_121')
+#library(rJava)
+#library(RWeka)
+#options(mc.cores=1)
+options(scipen = 999)
+
+
+# Needed for a bug when calculating n-grams with weka
+
+#google sheet to read in
+  ss <- gs_key("1WEXcrBOK77HZY0OvURatZbTCkqLcDtSIBQrzHlU-ebI")
+
+#get names of worksheets
+  gs_ws_ls(ss)
+
+#bring in data
+  words_raw <-
+    gs_read(ss, ws = 'data', lookup = T) %>%
+    mutate(Text = gsub("[^[:punct:][:alnum:] ]", '', Text))
+
+
+
+#keep "against", add "also" to stopword search
+  words_to_remove <-
+    c(stopwords()[!grepl("against|we", stopwords())], #excluding
+    also)                                                        #including
+
+#keep only text, numbers, periods and spaces
+  remove_nonALNUM <-
+    function(x){
+      gsub("[^A-Za-z0-9\\. ]", "", x) %>%
+      gsub("([[:alnum:]])\\.([[:alnum:]])", "\\1\\2", . ) %>%
+      gsub("(Dr)\\.", "\\1", . ) %>%
+      gsub("\\b(wom|m)an\\b", "\\1en", .)
+    }
+
+  remove_nonALNUM(words_raw$Text[15])
+  remove_nonALNUM("R.A.F.")
+
+  words_formatted <- #8084 words -> 4662 words
+      words_raw %>%
+      mutate(Org = remove_nonALNUM(Org))%>%
+      mutate(Text = remove_nonALNUM(Text),
+      Text = gsub("\\b$", "\\.", Text),
+      Sentence = strsplit(Text, "\\. ")) %>%
+      unnest(Sentence) %>%
+      mutate(Word = strsplit(Sentence, " ")) %>%
+      unnest(Word) %>%
+      mutate(Word = gsub("\\.", "", Word) %>%
+      tolower(.) %>%
+      trimws(.)) %>%
+      mutate(Stem = stemDocument(Word)) %>%
+      filter(!Word %in% words_to_remove) %>%
+      filter(Word != "") #%>%
+      #filter(nchar(Word) > 2)
+
+words_rates <-
+    words_raw %>%
+    mutate(Word = strsplit(Text, " ")) %>%
+    unnest(Word) %>%
+    mutate(Word = tolower(Word) %>%
+    removePunctuation(.),
+    Stem = stemDocument(Word)) %>%
+    filter(!Word %in% words_to_remove) %>%
+    filter(Word != "") %>%
+    filter(nchar(Word) > 2) %>%
+    select(-Text) %>%
+    mutate(total_words = max(row_number())) %>%
+    group_by(Org, Type, SubPage, Stem, total_words) %>%
+    summarise(freq = n()) %>%
+    group_by(Org, Type) %>%
+      mutate(total_words_type = sum(freq)) %>%
+    group_by(Org) %>%
+      mutate(total_words_org = sum(freq)) %>%
+    group_by(Stem, Org) %>%
+      mutate(word_rate_org = ((sum(freq)/total_words_org) * 1000) %>% as.integer(.)) %>%
+    ungroup
+
+words_rates2 <-
+    words_rates %>%
+    distinct(Org, Stem, word_rate_org) %>%
+    group_by(Stem) %>%
+    mutate(word_rate_avg = mean(word_rate_org)) %>%
+    group_by(Org) %>%
+    arrange(desc(word_rate_org)) %>%
+    mutate(Rank = row_number()) %>%
+    ungroup() %>%
+    right_join(words_rates)%>%
+    mutate(word_rate_diff = (word_rate_org - word_rate_avg)) %>%
+    select(Org, Type, SubPage, Stem, freq, contains("total"), everything())
+
+
+
+
+    n_distinct(words_rates$Stem)
+    n_distinct(words_formatted$Stem)
+
+
+
+
+
+getwd()
+write.csv(words_rates2, "word_frequencies.csv", row.names = F)
+write.csv(words_formatted, "words_in_context.csv", row.names = F)
+
+a <-
+  words %>%
+  slice(118) %>%
+
+
+
+a$Text[1]
+
+words$Text[118]
+
+
+
+```
+
+
+NOT USING
+```{r}
+
+head(freq.df, 20)
+pal = brewer.pal(8,"Blues") #brewer.pal(8, "Dark2")
+pal = pal[-(1:3)]
+
+wordcloud(freq.df$word,
+          freq.df$freq,
+          scale = c(4, .3),
+          max.words = 150,
+          min.freq = 1,
+          #random.order = F,
+          colors = pal)
+
+wordcloud(freq.df$word,
+          freq.df$freq,
+          scale = c(4,.3),
+          max.words = 150,
+          random.order = FALSE,
+          rot.per = .7)
+
+
+ggplot(head(freq.df, 15), aes(reorder(word,freq), as.integer(freq))) +
+  geom_bar(stat = "identity") + coord_flip() +
+  xlab("Phrases") + ylab("Frequency") +
+  ggtitle(paste("Most Frequent Phrases for\n",
+  make_clouds$Org[i], "-",
+  make_clouds$Type[i], "-",
+  make_clouds$SubPage[i], sep = " ")
+```
+
+NOT USING
+```{r}
+#https://rpubs.com/collnell/wordcloud
+
+word.corpus <-
+    Corpus(VectorSource(words$Text)) %>%
+    tm_map(removePunctuation)%>% ##eliminate punctuation
+    #tm_map(removeNumbers)%>% #no numbers
+    tm_map(stripWhitespace) %>% #white spaces
+    tm_map(tolower)%>% ##make all words lowercase
+    tm_map(removeWords, stopwords("english")) %>%
+    tm_map(stemDocument)
+
+word.counts <- 
+    tm_map(word.corpus, content_transformer(tolower))
+
+#as.matrix(TermDocumentMatrix(word.corpus))
+word.freq <- sort(rowSums(word.counts), decreasing=TRUE)
+head(word.freq)
+
+library(wordcloud) #wordcloud
+set.seed(32) #be sure to set the seed if you want to reproduce the same again
+
+wordcloud(words=names(word.freq),
+          freq=word.freq,
+          scale=c(3,.5),
+          max.words = 100,
+          random.order = TRUE)
+
+
+wordcloud(words=names(word.freq),
+          freq=word.freq,
+          scale=c(4,.3),
+          max.words = 150,
+          random.order = FALSE,
+          color= brewer.pal(8, "Dark2"),
+          rot.per=.7)
+```
