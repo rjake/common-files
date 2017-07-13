@@ -8,10 +8,14 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r cars}
-setwd("C:/Users/jriley215/Desktop/Projects/TM Data Presentation/Superstore")
 library(tidyverse)
 
-superstore <- read.csv("TableDiscounts.csv", stringsAsFactors = F) %>% 
+url_csv <- 
+  "https://raw.githubusercontent.com/rjake/CommonFiles/master/waterfall_base_data.csv"
+
+
+superstore <- 
+  read.csv(url_csv, stringsAsFactors = F) %>% 
   select(-Discount) %>% 
   rename(ListPrice = Sales_ifNoDiscount,
          Discount = DiscountValue) %>% 
@@ -68,7 +72,7 @@ ggplot(whatHappened[1:(3*8),], aes(Order)) +
         ,legend.position = "none"
         )
 
-ggsave(file="ggWaterfall.png", width=4.5, height=3)
+#ggsave(file="ggWaterfall.png", width=4.5, height=3)
 ```
 
 
@@ -118,5 +122,5 @@ ggplot(whatHappened2[1:(2*8),], aes(Order)) +
         ,legend.position = "none"
         )
 
-ggsave(file="ggWaterfall2.png", width=4.5, height=3)
+#ggsave(file="ggWaterfall2.png", width=4.5, height=3)
 ```
