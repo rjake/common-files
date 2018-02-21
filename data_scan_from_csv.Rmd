@@ -1,0 +1,442 @@
+```{r edit}
+#Plug in file name
+  get_data <- 
+    "your.csv"
+
+  #logical statement to test, left side is column name, right side is test
+
+  test.dv <- "(YOUR_VAR > 20)"
+    
+  #"(diagnosis == 'M')"
+  #"(Dalc > 3)" 
+  #"(dep_delay > 30)"
+  
+```
+
+```{r workspace}
+#The code will run from here...
+setwd("")
+
+library(tidyverse)
+library(lubridate)
+library(forcats)
+
+library(alluvial)
+library(corrplot)
+library(knitr)
+library(DT)
+library(stringi)
+#library(plotly)
+options(scipen = 999)
+
+cut_quantile <- function(x){
+  cut(x, 
+      breaks = unique(quantile(x, na.rm = T)),
+      include.lowest = T, 
+      dig.lab = 10, 
+      right = F,
+      ordered_result = T)
+} 
+
+data.raw <- 
+  read.csv(get_data, stringsAsFactors = F, na.strings = c("NULL")) %>% 
+  filter(complete.cases(.)) %>% 
+  #select(-matches("DATE|DT|_ROOM")) %>% 
+  mutate_at(vars(matches("DATE|DT|_ROOM")), 
+            funs(mdy_hm))%>%
+  mutate_(TestDV = test.dv) 
+
+
+colExclude <- #excludes the column of the dep var
+    test.dv %>% 
+    gsub(" .*" , "",.) %>% 
+    gsub("\\(" , "",.)
+  
+
+pct_occur <- 
+  (sum(data.raw$TestDV)/nrow(data.raw)) %>% 
+  round(., 3) * 100
+
+pct_occur <- 
+  as.character(pct_occur) %>% 
+  paste0(., "%")
+```
+
+#Data classes
+```{r get_classes}
+classData <-  
+  tibble(Name = colnames(data.raw)) %>% 
+  mutate(Ord = row_number(),
+         Class = as.character(lapply(data.raw, class)),
+         N = as.integer(lapply(data.raw, n_distinct)),
+         Class = ifelse(N <= 2, "logical", Class))
+  
+
+data_col_char <- which(classData$Class %in% 
+                       c("character", "factor"))
+
+data_col_logical <- which(classData$Class %in% c("logical") & classData$N == 2)
+  
+data_col_num <- which(classData$Class %in% 
+                        c("integer", "numeric"))
+
+data_col_date <- grep("POSIX", classData$Class)
+  
+blank_df <-
+  tibble(TestDV = vector("logical"),
+         Var  = vector("character"),
+         Response  = vector("character"),
+          Original  = vector("numeric"),
+          Order  = vector("integer"),
+          N  = vector("integer"))
+  
+  
+
+#Character data
+if(length(data_col_char) >1){
+  cData <-
+    select(data.raw, data_col_char, TestDV) %>% 
+    gather(key="Var", value = "Response", -TestDV, na.rm = T) %>%
+    filter(Var != colExclude) %>%
+    mutate(Var = as.character(Var),
+           Original = Response) %>% 
+    group_by(TestDV, Var, Response, Original) %>% 
+    summarise(N = n()) %>% 
+    group_by(Var, Response) %>%
+    mutate(Total = sum(N)) %>% 
+    group_by(Var, TestDV) %>% 
+    arrange(desc(Total)) %>% 
+    mutate(Order = row_number()) %>% #as.integer(factor(Response))
+    ungroup() %>% 
+    select(-Total)
+} else {cData <- blank_df}
+
+#binary data
+if(length(data_col_logical) >1){
+  bData <- 
+    select(data.raw, data_col_logical) %>% 
+    gather(key="Var", value = "Response", -TestDV, na.rm = T) %>%
+    filter(Var != colExclude) %>%
+    mutate(Var = as.character(Var),
+           Original = Response) %>% 
+    group_by(TestDV, Var, Response, Original) %>% 
+    summarise(N = n()) %>% 
+    group_by(Var, Response) %>%
+    mutate(Total = sum(N)) %>% 
+    group_by(Var, TestDV) %>% 
+    arrange(desc(Total)) %>% 
+    mutate(Order = row_number()) %>% #as.integer(factor(Response))
+    ungroup() %>% 
+    select(-Total)
+} else {bData <- blank_df}
+
+#Numeric data (has decimal place)
+if(length(data_col_num) > 0){
+  nData <-
+    select(data.raw, data_col_num) %>% 
+    cbind(select(data.raw, TestDV)) %>% 
+    gather(key="Var", value = "Original", -TestDV, na.rm = T) %>%
+    filter(Var != colExclude) %>%
+    group_by(Var) %>% 
+    mutate(n_breaks = ifelse(n_distinct(Original) < 4, n_distinct(Original), 4),
+           Cut = ntile(Original, n_breaks)) %>% 
+    group_by(Var, Cut) %>% 
+    mutate(Response = paste0("[", min(Original), " to ", max(Original), "]"),
+           Order = as.integer(factor(Response))) %>%
+    group_by(TestDV, Var, Response, Original, Order) %>% 
+    summarise(N = n()) %>% 
+    ungroup()
+} else {nData <- blank_df}
+
+
+if(length(data_col_date) >0){
+  dData <-
+    select(data.raw, c(data_col_date)) %>% 
+    cbind(select(data.raw, TestDV)) %>% 
+    gather(key="Var", value = "Original", -TestDV, na.rm = T) %>%
+    filter(Var != colExclude) %>%
+    mutate(dateInteger = paste0(year(Original), 
+                                stri_pad(month(Original), width = 2, pad = 0), 
+                                stri_pad(day(Original), width = 2, pad = 0)),
+           Original = as.integer(dateInteger)) %>% 
+    select(-dateInteger) %>% 
+    group_by(Var) %>% 
+    mutate(Response = cut_quantile(Original),
+           Order = as.integer(factor(Response))) %>%
+    group_by(TestDV, Var, Response, Original, Order) %>% 
+    summarise(N = n()) %>% 
+    ungroup() %>% 
+    mutate(Response = gsub(",", " to ", Response))
+} else {dData <- blank_df}
+
+data.both <- 
+  rbind(cData, nData, bData, dData) %>% 
+#  filter(Var != colExclude) %>%
+  group_by(TestDV, Var, Response, Order) %>% 
+  summarise(N = sum(N)) %>% 
+  ungroup() %>% 
+  group_by(Var) %>% 
+  mutate(Unique = n()) %>% 
+  ungroup()
+```
+
+###Quick plots for when `r test.dv`
+
+####On average this occurs `r pct_occur` of the time.
+```{r charts}
+theme_forcharts <- 
+    theme(axis.text = element_blank(),
+          panel.background = element_blank(),
+          axis.title = element_blank(),
+          plot.title = element_text(hjust = 0),
+          axis.ticks = element_blank(),
+          panel.margin=unit(.05, "lines"),
+          panel.border = element_rect(color = "grey50", fill = NA, size = 1), 
+          strip.background = element_rect(color = "grey50", size = 1),
+          strip.text.x = element_text(size = 7),
+          aspect.ratio = 1)
+
+chart_colors <- c("#aba5a5", "#ea7e26")
+  
+chart_text <-
+  cData %>% 
+  mutate(Var = str_wrap(str_replace_all(Var, "_", " "), 8)) %>% 
+  ggplot(aes(x=Original, y=N,  fill = TestDV)) +
+  facet_wrap(~Var, scales="free", ncol = 8) +
+  theme_forcharts +
+  geom_col() +
+  scale_fill_manual(values = chart_colors) +
+  ggtitle("Data Type: Text")
+
+chart_text
+
+chart_binary <-
+  bData %>% 
+  mutate(Var = str_wrap(str_replace_all(Var, "_", " "), 8)) %>% 
+  ggplot(aes(x=Original, y=N,  fill = TestDV)) +
+  facet_wrap(~Var, scales="free", ncol = 12) +
+  theme_forcharts +
+  geom_bar(stat="identity") +
+  scale_fill_manual(values = chart_colors) +
+  ggtitle("Data Type: Binary")
+
+chart_binary
+
+chart_date <-
+  dData %>% 
+  mutate(Var = str_wrap(str_replace_all(Var, "_", " "), 8)) %>% 
+  ggplot(aes(x = Response, fill = TestDV)) +
+  facet_wrap(~Var, scales="free", ncol = 8) +
+  theme_forcharts +
+  geom_col(aes(group = TestDV, y = N)) +
+  scale_fill_manual(values = chart_colors)  +
+  ggtitle("Data Type: Dates")
+
+chart_date
+
+chart_numeric <-
+  nData %>% 
+  mutate(Var = str_wrap(str_replace_all(Var, "_", " "), 8)) %>% 
+  ggplot(aes(x = Original, fill = TestDV)) +
+  facet_wrap(~Var, scales="free", ncol = 8) +
+  theme_forcharts +
+  geom_histogram(aes(group = TestDV, weight = N)) +
+  scale_fill_manual(values = chart_colors) +
+  ggtitle("Data Type: Numeric & Integers")
+
+chart_numeric
+```
+
+###Numeric values are cut into quartiles and become quartiles (each group = 25% of the data)
+Plots are only shown for values that have > 2 observations
+```{r pre_loop, eval = T}
+a <- 
+  data.both %>% 
+  group_by(Var, Response) %>% 
+  mutate(Total = sum(N)) %>%
+  group_by(Var) %>% 
+  mutate(Max = max(Total)) %>%
+  ungroup() %>% 
+  filter(Total > 2) %>% 
+  group_by(Var) %>% 
+  mutate(n_resp = n()) %>% 
+  ungroup() %>% 
+  filter(n_resp > 2) %>% 
+  mutate(PctResp = N/Total,
+         PctAll = Total/Max)
+
+nVars <- a %>% 
+  group_by(Var) %>% 
+  summarise(Dist = n_distinct(Response)) %>% 
+  ungroup() %>% 
+  arrange(Var)
+```
+
+```{r loop}
+for(i in 1:nrow(nVars)){
+#i = 3
+  data.prep <-
+    a %>% 
+    filter(Var == nVars$Var[i],
+           Order < 30)
+  
+  
+  if(substr(data.prep$Response[1], 1, 1) == "["){
+      data.prep$Response2 <- fct_inorder(data.prep$Response)
+  } else {
+      data.prep$Response2 <- fct_reorder(data.prep$Response,
+                                         data.prep$Total)
+  }
+  
+#  levels(data.prep$Response2)
+  
+  ref_line <-
+    sum(data.raw$TestDV)/nrow(data.raw)
+  
+    p <- 
+    ggplot(data.prep, 
+           aes(x= Response2, y = PctResp, fill = TestDV)) + 
+    geom_bar(stat = "identity", position = "fill", color = "white") +
+    geom_hline(yintercept = ref_line, linetype = "dashed") +
+    geom_text(aes(x = Response2, y = 1.05, label = Total), size = 3) +
+    coord_flip() +
+    scale_fill_manual(values = chart_colors) +
+    ggtitle(paste0(nVars$Var[i], " (", "n = ", sum(data.prep$N), 
+                   ", ", round(sum(data.prep$N)/nrow(data.raw), 2)*100, "% shown, ", n_distinct(data.prep$Response),
+                   " values)")) + 
+    guides(fill=guide_legend(title = gsub("[(|)]", "", test.dv))) +
+    theme(panel.background = element_blank(),
+          axis.title = element_blank(),
+          axis.text.y = element_text(colour="grey20",size = 7),  
+          plot.title = element_text(hjust = 0, size = 12),
+          axis.ticks = element_blank(),
+          panel.spacing = unit(.05, "lines"),
+          panel.border = element_rect(color = "grey50", fill = NA), 
+          strip.background = element_rect(color = "grey50", size = 1))
+
+print(p)
+    
+}
+
+```
+
+##Correlation Matrix (integer & numeric values only)
+```{r corrplot}
+#Correlations
+# select(data.raw, data_col_num) %>%
+#   cor(use = "complete.obs")%>% 
+#   corrplot(type="lower", tl.cex = .75) 
+  #         order = "hclust")
+  #corrplot.mixed(tl.cex=1, order = "hclust", lower = "circle")#, upper = "number")
+```
+
+##Variable frequency breakdown
+```{r datatables}
+dataProp <- 
+  data.both %>% 
+  group_by(TestDV, Var, Response) %>% 
+  summarise(N = sum(N)) %>% 
+  group_by(Var, Response) %>% 
+  mutate(Total = sum(N),
+         Pct = round(N/Total, 2)) %>% 
+  ungroup() %>% 
+  arrange(-Pct,-Total)
+
+filter(dataProp, TestDV == 1, Total > 5) %>% 
+   datatable(rownames = F,
+             caption = paste0("Frequency of ", test.dv, " occuring")) %>% 
+  formatStyle(1:ncol(dataProp), color = 'black')
+            
+
+filter(dataProp, TestDV == 0, Pct == 1, Total > 2)%>% 
+    datatable(rownames = F,
+              caption = paste0("Where ", test.dv, " never occurs")) %>% 
+  formatStyle(1:ncol(dataProp), color = 'black')
+```
+
+
+```{r sankey, eval = T}
+whichFields <-
+  a %>% 
+  filter(TestDV == T) %>% 
+  group_by(Var, Unique) %>% 
+  summarise(Min = min(PctResp),
+            Max = max(PctResp)) %>% 
+  ungroup %>% 
+  mutate(Range = Max-Min) %>% 
+  arrange(-Range) %>%
+  filter(Unique < 10) %>% 
+  top_n(2)
+
+
+sankeyPre <-
+  data.raw %>% 
+  select(one_of(whichFields$Var), TestDV)
+
+
+for(i in c(1:2)){
+# i=2  
+  getClass <- class(sankeyPre[[i]])
+
+  sankeyPre[[i]] <-  
+  if(getClass == "integer"){
+        cut_quantile(sankeyPre[[i]])
+    } else  if(getClass == "numeric"){
+        cut_quantile(sankeyPre[[i]])
+    } else if(getClass == "Date"){
+        cut_quantile(
+        as.integer(
+        paste0(year(sankeyPre[[i]]), 
+             stri_pad(month(sankeyPre[[i]]), width = 2, pad = 0), 
+             stri_pad(day(sankeyPre[[i]]), width = 2, pad = 0))))
+
+    } else{
+      sankeyPre[[i]]
+      }
+}
+
+
+sankeyReady <-
+  sankeyPre %>% 
+  group_by_(whichFields$Var[1], 
+            whichFields$Var[2],
+            "TestDV") %>% 
+  summarise(N = n()) %>% 
+  ungroup()
+
+alluvial(sankeyReady[, c(3,1,2)], 
+         freq = sankeyReady$N, 
+         border = "grey",
+#         hide = sankeyReady$N < quantile(sankeyReady$N, .50),
+         col = ifelse(sankeyReady$TestDV == T, "orange", "gray"),
+         cex = .65,
+         blocks = T)
+
+```
+
+
+
+```{r eval = F}
+library(caret)
+#forReg <-
+  select(data.raw, c(dataColNum, dataColInt)) %>% 
+  mutate_each(funs(cut_quantile)) %>% 
+  cbind(select(data.raw, c(dataColChar, dataColFact, dataColLog)))
+
+reg <- glm(TestDV ~ ., family=binomial, data = forReg)
+summary(reg)
+
+b <- 
+  coef(summary(reg)) %>% 
+  as.data.frame() %>% 
+  mutate(Var = row.names(.)) %>% 
+  mutate_each(funs(round(., 4)), 1:4) %>%
+  mutate(Signif = `Pr(>|z|)` < 0.05)
+
+#http://stats.stackexchange.com/questions/5354/logistic-regression-model-does-not-converge
+varImp(reg, scale = F) %>% 
+  as.data.frame() %>% 
+  mutate(Name = row.names(.)) %>% 
+  arrange(-Overall) %>% 
+  head()
+```
