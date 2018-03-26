@@ -171,11 +171,11 @@ Details
 observe({
   if(is.null(input$get_file)){
     get_data <- iris
-  } else if(grepl(".csv", input$file1)){
+  } else if(grepl(".csv", input$get_file)){
     get_data <-
       read.csv(input$get_file$datapath, stringsAsFactors = F, na.strings = c('NULL', 'NA')) %>%
       mutate_at(vars(matches("DATE|DT|_ROOM")), funs(date_guess))
-  } else if(grepl(".sql", input$file1)){
+  } else if(grepl(".sql", input$get_file)){
     cdwprd <- dbConnect(drv = odbc(), dsn = "CDWPRD", believeNRows = F, bigint = "integer")
     get_data <- dbGetQuery(cdwprd, read_file(input$get_file$datapath))
   }
@@ -249,7 +249,7 @@ observe({
     facets <- paste(get_fr, '~', get_fc)
     
     HTML( gsub("(, ", "(",
-               paste0('ggplot(df',
+               paste0('ggplot(',
                       #
                       ifelse(isTRUE(all.equal(get_data, iris)), 'iris', 'df'),
                       ') +<br/>',
