@@ -45,6 +45,7 @@ runtime: shiny
 # load data in 'global' chunk so it can be shared by all users of the dashboard
   library(tidyverse)
   library(lubridate)
+  library(DT)
   #library(odbc)
   library(shiny)
   library(shinydashboard)
@@ -57,8 +58,10 @@ runtime: shiny
     }
 ```
 
-Inputs {.sidebar data-width=500;}
+Data Visualization
 =====================================
+Inputs {.sidebar data-width=500;}
+-------------------------------------
 ```{r get_file}
   fluidRow(tags$style(mycss), span(class = "general"
            , fileInput("get_file", label = NULL, 
@@ -146,16 +149,15 @@ fluidRow(tags$style(mycss), span(class = "checkboxes"
 
 ```
 
-Data Visualization
-=====================================
-Row {data-height=400}
----------------------------------------
+
+Column {.tabset}
+-------------------------------------
+###ggplot
 ```{r get_plot}
   plotOutput("plot", width = "100%", height = "550px")
 ```
 
-Row {data-height=100}
----------------------------------------
+###code
 ```{r get_code}
 fluidRow(tags$style(mycss), span(class = "courier_font"
   , htmlOutput("gg_call")))
@@ -164,7 +166,7 @@ fluidRow(tags$style(mycss), span(class = "courier_font"
 Details
 =====================================
 ```{r}
-  uiOutput("get_table")
+  dataTableOutput("get_table")
 ```
 
 ```{r observe}
@@ -182,8 +184,7 @@ observe({
   
   get_colnames <- names(get_data)
   
-  output$get_geom <- 
-    renderUI(selectInput('chart_type', NULL, choices = c("geom_count", "geom_point", "geom_bar", "geom_line")))
+  output$get_geom <- renderUI(selectInput('chart_type', NULL, choices = c("geom_count", "geom_point", "geom_bar", "geom_line")))
   output$x <- renderUI(selectInput('x', 'X', get_colnames[2], choices = c(Choose=".", get_colnames)))
   output$y <- renderUI(selectInput('y', 'Y', get_colnames[3], choices = c(Choose=".", get_colnames)))
   output$color <- renderUI(selectInput('color', 'Color', NULL, choices = c(Choose=".", get_colnames)))
@@ -237,6 +238,7 @@ observe({
                 axis.text.y = show_y_text)
         print(p)
       })
+  
  output$gg_call <-
   renderText({ #isTRUE(all.equal(data_selected, mpg))})
     get_x <- ifelse(nchar(input$text_x) > 0, input$text_x, input$x)
@@ -255,7 +257,7 @@ observe({
                       ') +<br/>',
                       get_geom, '(',
                       'aes(',
-                      paste0(ifelse(input$x != '.', paste0('x =', get_x), ''),
+                      paste0(ifelse(input$x != '.', paste0('x = ', get_x), ''),
                              ifelse(input$y != '.', paste0(', y = ', get_y), ''),
                              ifelse(input$color != '.', paste0(', color = ', get_c), ''),
                              ifelse(input$fill != '.', paste0(', fill = ', get_f), '')),
@@ -279,7 +281,17 @@ observe({
                              )
   })
  
- output$get_table <- renderTable(get_data)
-
+  output$get_table <- 
+    renderDataTable({
+        DT::datatable(get_data
+                      , extensions = c('Buttons', 'Scroller')
+                      , options = list(
+                                  dom = 'Bfrtip',
+                                  deferRender = T,
+                                  scrollY = 550,
+                                  scroller = T,
+                                  rownames = F,
+                                  buttons = c('copy', 'csv', 'excel', 'pdf', 'print')))
+    })
 })
 ```   
