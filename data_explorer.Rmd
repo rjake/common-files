@@ -176,8 +176,8 @@ observe({
       read.csv(input$get_file$datapath, stringsAsFactors = F, na.strings = c('NULL', 'NA')) %>%
       mutate_at(vars(matches("DATE|DT|_ROOM")), funs(date_guess))
   } else if(grepl(".sql", input$get_file)){
-    cdwprd <- dbConnect(drv = odbc(), dsn = "CDWPRD", believeNRows = F, bigint = "integer")
-    get_data <- dbGetQuery(cdwprd, read_file(input$get_file$datapath))
+    dbcon <- ""
+    get_data <- dbGetQuery(dbcon, read_file(input$get_file$datapath))
   }
   
   get_colnames <- names(get_data)
