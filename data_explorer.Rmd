@@ -206,10 +206,10 @@ observe({
           ggplot(get_data) +
           get(get_geom)()
     
-        if (input$x != '.')         p <- p + aes_string(x = eval(get_x))
-        if (input$y != '.')         p <- p + aes_string(y = eval(get_y))
-        if (input$color != '.')     p <- p + aes_string(color = eval(get_c))
-        if (input$fill != '.')  p <- p + aes_string(fill = eval(get_f))
+        if (get_x != '.')  p <- p + aes_string(x = eval(get_x))
+        if (get_y != '.')  p <- p + aes_string(y = eval(get_y))
+        if (get_c != '.')  p <- p + aes_string(color = eval(get_c))
+        if (get_f != '.')  p <- p + aes_string(fill = eval(get_f))
     
         facets <- paste(get_fr, '~', get_fc)
         if (facets != '. ~ .')  p <- p + facet_grid(facets, scales = "free", space = "free")
@@ -257,10 +257,10 @@ observe({
                       ') +<br/>',
                       get_geom, '(',
                       'aes(',
-                      paste0(ifelse(input$x != '.', paste0('x = ', get_x), ''),
-                             ifelse(input$y != '.', paste0(', y = ', get_y), ''),
-                             ifelse(input$color != '.', paste0(', color = ', get_c), ''),
-                             ifelse(input$fill != '.', paste0(', fill = ', get_f), '')),
+                      paste0(ifelse(get_x != '.', paste0('x = ', get_x), ''),
+                             ifelse(get_y != '.', paste0(', y = ', get_y), ''),
+                             ifelse(get_c != '.', paste0(', color = ', get_c), ''),
+                             ifelse(get_f != '.', paste0(', fill = ', get_f), '')),
                       '))',
                       ifelse(input$jitter, '+\ngeom_jitter()', ''),
                       ifelse(facets != '. ~ .', paste0('+<br/>facet_grid(', facets, ', scales = "free", space =
