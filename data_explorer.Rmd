@@ -15,9 +15,8 @@ runtime: shiny
     .one_row .shiny-input-container {
       display: inline-block;
       padding-left: 16px;
-      padding-top: 2px;
       width: 95%;
-      height: 20px;
+      height: 16px;
     }
 
     .general .shiny-input-container {
@@ -69,6 +68,16 @@ Data Visualization
 Inputs {.sidebar data-width=500;}
 -------------------------------------
 
+```{r get_file}  
+  fluidRow(tags$style(mycss), span(class = "general",
+            fileInput("get_file", label = NULL, 
+                                 accept = c(".csv", ".sql"))))
+  
+```
+
+###
+
+-------------------------------------
 ```{r geom}
   fluidRow(tags$style(mycss), span(class = "one_row"
            , column(6, uiOutput('get_geom')))
@@ -169,17 +178,6 @@ Details
 =====================================
 
 ###
-Row {data-height=40px}
--------------------------------------
-```{r get_file}  
-  fluidRow(tags$style(mycss), span(class = "general",
-            fileInput("get_file", label = NULL, 
-                                 accept = c(".csv", ".sql"))))
-  
-```
-
-###
-Row {data-height=500px}
 -------------------------------------
 ```{r get_table}  
   dataTableOutput("get_table")
