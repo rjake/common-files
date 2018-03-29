@@ -23,7 +23,7 @@ library(tidyverse)
           x_int <- abs(as.integer(x))
           x_dec <- abs(x) - x_int
           
-          dec_round <- round(x_dec/accuracy) * accuracy
+          dec_round <-(x_dec%/%accuracy) * accuracy
           
           return((x_int * x_sign) + dec_round)
         } 
