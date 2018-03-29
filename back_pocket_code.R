@@ -30,7 +30,7 @@ library(tidyverse)
 
     round_down_dec(5.343, 0.08)
     round_down_dec(seq(0, 20, 2), 5)
-    round_down_dec(seq(0, 20, 2), test_round, 3)
+    round_down_dec(seq(0, 20, 2), 3)
     
 #add commas to big #s
     nice_int <- 
