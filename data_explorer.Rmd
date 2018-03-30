@@ -23,7 +23,7 @@ runtime: shiny
       display: inline-block;
       padding-left: 15px;
       padding-top: 5px;
-      width: 50%;
+      width: 90%;
       height: 20px;
     }
   
@@ -195,7 +195,7 @@ observe({
       read.csv(input$get_file$datapath, stringsAsFactors = T, na.strings = c('NULL', 'NA')) %>%
       mutate_at(vars(matches("DATE|DT|_ROOM")), funs(date_guess))
   } else if(grepl(".sql", input$get_file)){
-    dbcon <- ""
+    dbcon <- dbConnect()
     get_data <- dbGetQuery(dbcon, read_file(input$get_file$datapath))
     dbDisconnect(dbcon)
   }
@@ -297,36 +297,34 @@ observe({
     get_geom <- ifelse(get_y != '.' && input$chart_type == 'geom_bar', 'geom_col', input$chart_type)
     facets <- paste(get_fr, '~', get_fc)
     
-    HTML( gsub("(, ", "(",
-               paste0('ggplot(',
-                      #
-                      ifelse(is.null(input$get_file), 'iris', 'df'),
-                      ') +<br/>',
-                      get_geom, '(',
-                      'aes(',
-                      paste0(ifelse(get_x != '.', paste0('x = ', get_x), ''),
-                             ifelse(get_y != '.', paste0(', y = ', get_y), ''),
-                             ifelse(get_c != '.', paste0(', color = ', get_c), ''),
-                             ifelse(get_f != '.', paste0(', fill = ', get_f), '')),
-                      '))',
-                      ifelse(input$jitter, '+\ngeom_jitter()', ''),
-                      ifelse(facets != '. ~ .', paste0('+<br/>facet_grid(', facets, ', scales = "free", space =
-                                    "free")'), ''),
-                      ifelse(input$smooth, '+<br/>geom_smooth()', ''),
-                      ifelse(input$coord, '+<br/>coord_flip()', ''),
-                      ifelse(get_geom == 'geom_col',
-                             paste0('+<br/>labs(y = "sum of ', get_y, '")'), ''),
-                      ifelse(input$show_x_axis | input$show_y_axis,
-                             paste0('+<br/>theme(',
-                                    ifelse(input$show_x_axis, 
-                                           'axis.ticks.x = element_blank(), axis.text.x = element_blank()', ''),
-                                    ifelse(input$show_y_axis, 
-                                           'axis.ticks.y = element_blank(), axis.text.y = element_blank()', ''),
-                                    ')', collapse = ","), '')
-                      )
-               , fixed = T)
+    HTML( 
+       paste0('ggplot(',
+              #
+              ifelse(is.null(input$get_file), 'iris', 'df'),
+              ') + <br>',
+              get_geom, '(',
+              'aes(',
+              paste0(ifelse(get_x != '.', paste0('x = ', get_x), ''),
+                     ifelse(get_y != '.', paste0(', y = ', get_y), ''),
+                     ifelse(get_c != '.', paste0(', color = ', get_c), ''),
+                     ifelse(get_f != '.', paste0(', fill = ', get_f), '')),
+              '))',
+              ifelse(input$jitter, '+<br>geom_jitter()', ''),
+              ifelse(facets != '. ~ .', paste0('+facet_grid(', facets, ', scales = "free", space =
+                            "free")'), ''),
+              ifelse(input$smooth, '+<br>geom_smooth()', ''),
+              ifelse(input$coord, '+<br>coord_flip()', ''),
+              ifelse(get_geom == '+<br>geom_col',
+                     paste0('+<br>labs(y = "sum of ', get_y, '")'), ''),
+              ifelse(input$show_x_axis | input$show_y_axis,
+                     paste0('+<br>theme(',
+                            ifelse(input$show_x_axis, 
+                                   'axis.ticks.x = element_blank(), axis.text.x = element_blank()', ''),
+                            ifelse(input$show_y_axis, 
+                                   'axis.ticks.y = element_blank(), axis.text.y = element_blank()', ''),
+                            ')', collapse = ","), "")
+              )
          ) 
-    
   })
  
 })
