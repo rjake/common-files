@@ -34,6 +34,7 @@ change_range <-
     change_range(c(0:10), -10, 10)
 ```
 
+#hardcoded working example
 ```{r as_lines}
 df <-
     tibble(group_1 = letters[1:10],
