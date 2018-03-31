@@ -76,7 +76,7 @@ ggplot(df) +
 
 
 #soft coding
-```{r make_sankey_df}
+```{r fx_dataframe}
 make_sankey_df <-
     function(df, col_1, col_2, ord_by = NA, sep = 0.02, x = 1) {
     
@@ -96,13 +96,13 @@ make_sankey_df <-
             ungroup() %>% 
         #line up y-positions for col_1
             arrange(n_col_1, col_1, n_col_2) %>% 
-            mutate(add_gap_1 = (col_1 == lag(col_1, default = first(col_1))),
-                   y1 = cumsum(N + ifelse(add_gap_1, 0, gap))) %>% 
+            mutate(add_gap_1 = (col_1 != lag(col_1, default = first(col_1))),
+                   y1 = cumsum(N + ifelse(add_gap_1, gap, 0))) %>% 
             ungroup() %>% 
         #repeat for col_2
             arrange(n_col_2, N) %>% 
-            mutate(add_gap_2 = (col_2 == lag(col_2, default = first(col_2))),
-                   y2 = cumsum(N + ifelse(add_gap_2, 0, gap)))
+            mutate(add_gap_2 = (col_2 != lag(col_2, default = first(col_2))),
+                   y2 = cumsum(N + ifelse(add_gap_2, gap, 0)))
     
     
     df_final <-
@@ -119,7 +119,20 @@ make_sankey_df <-
         mutate()
     }
 ```
-    
+
+```{r fx_labels}
+sankey_label <-
+    function(sankey_df, col, side) {
+        find_x = ifelse(side == "left", min(df$x), max(df$x))
+        
+        sankey_df %>% 
+            group_by_(col) %>% 
+            filter(x == find_x) %>% 
+            summarise(x = find_x, 
+                      high = max(high))
+    }
+```
+
 ```{r test_data}
 test_data <- 
     msleep %>% 
@@ -135,27 +148,17 @@ b <- a %>% filter(x == 1) %>% arrange(n_col_1, col_1, n_col_2)
 ```
 
 ```{r test_plot}
-
 ggplot(a) +
-    geom_ribbon(aes(x = x, ymax = high, ymin = low,
-                    group = group, fill = col_1), alpha = 0.25) +
+    geom_ribbon(aes(x = x, ymax = high, ymin = low, group = group, fill = col_1), 
+                alpha = 0.25) +
     geom_rect(data = filter(a, x %in% c(min(x), max(x))),
-        aes(xmin = x - 0.1, xmax = x + 0.1, 
-            ymin = low, ymax = high+0.5,
-            group = group), fill = "black") +
+              aes(xmin = x - 0.1, xmax = x + 0.1, ymin = low, ymax = high+0.5, group = group),
+              fill = "black") +
     guides(fill = F, color = F) +
-    geom_text(
-        data = a %>% group_by(col_1) %>% filter(x == 1) %>% 
-            summarise(x = 1, high = max(high)),
-        aes(x = x, y = high, label = col_1),
-        hjust = 1, nudge_x = -0.2
-        ) +
-    geom_text(
-        data = a %>% group_by(col_2) %>% filter(x == 11) %>% 
-            summarise(x = 11, high = max(high)),
-        aes(x = x, y = high, label = col_2),
-        hjust = 0, nudge_x = 0.2
-        ) +
+    geom_text(data = sankey_label(a, "col_1", "left"),
+              aes(x = x, y = high, label = col_1), hjust = 1, nudge_x = -0.2) +
+    geom_text(data = sankey_label(a, "col_2", "right"),
+              aes(x = x, y = high, label = col_2), hjust = 0, nudge_x = 0.2) +
     scale_x_continuous(limits = c(0, 13), expand = c(0,0)) +
     theme(panel.background = element_rect(fill = "white"),
           axis.text.y = element_blank(),
