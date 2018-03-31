@@ -101,7 +101,7 @@ make_sankey_df <-
                    y1 = cumsum(N + ifelse(add_gap_1, gap, 0))) %>% 
             ungroup() %>% 
         #repeat for col_2
-            arrange(n_col_2, N) %>% 
+            arrange(n_col_2, y1) %>% 
             mutate(add_gap_2 = (col_2 != lag(col_2, default = first(col_2))),
                    y2 = cumsum(N + ifelse(add_gap_2, gap, 0)))
     
@@ -137,7 +137,7 @@ sankey_label <-
 ```{r test_data}
 test_data <- 
     msleep %>% 
-    #mutate(order = fct_lump(order, 5) %>% as.character()) %>% 
+    mutate(order = fct_lump(order, 5) %>% as.character()) %>% 
     group_by(order, vore) %>% 
     #filter(max(row_number()) > 1) %>% 
     select(order, vore, genus, name) %>% 
