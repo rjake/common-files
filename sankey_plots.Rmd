@@ -1,0 +1,178 @@
+---
+title: "Untitled"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Workspace
+```{r}
+library(tidyverse)
+library(forcats)
+```
+
+#Formulas
+```{r functions}
+sigmoid <- 
+    function(height){
+      x = c(-4,-3,-2,-1,0,1,2,3,4)
+      c(0, (1/(1+exp(-x))), 1)
+    }
+
+    sigmoid(1)
+    sigmoid(4)
+
+change_range <- 
+    function(x, new_min, new_max){
+        (x - min(x))/(max(x)-min(x)) * (new_max - new_min) + new_min 
+    }
+    
+    change_range(c(0:10), -10, 10)
+```
+
+```{r as_lines}
+df <-
+    tibble(group_1 = letters[1:10],
+         y1 = seq(1, 10, 1),
+         y2 = seq(0, 20, length.out = 10),
+         h = y2-y1,
+         group_2 = rep(letters[1:5],each = 2)) %>% 
+    unnest(y_curve = list(sigmoid(h)),
+         x = list(1:11)) %>% 
+    mutate(y = y1 + (y_curve*h))
+
+
+ggplot(df) +
+    geom_line(aes(x, y, group = group_1, color = group_2))
+```
+
+```{r working_example}
+df <-
+    tibble(group = letters[1:10],
+         N = 20:11, 
+         y1 = cumsum(N + 5),
+         y2 = seq(-100, 250, length.out = 10)) %>% 
+    unnest(y_curve = list(sigmoid(h)),
+         x = list(1:11)) %>% 
+    group_by(group) %>%
+    arrange(x) %>% 
+    mutate(h = (y2 - y1) * y_curve) %>% 
+    ungroup() %>% 
+    group_by(group, x) %>% 
+    mutate(high = max(y1) + (y_curve*h),
+           low = high - N) %>% 
+    ungroup()
+
+
+ggplot(df) +
+      geom_ribbon(aes(x = x, ymax = high, ymin = low, 
+                      group = group, fill = group)) +
+    guides(fill = F)
+```
+
+
+#soft coding
+```{r make_sankey_df}
+make_sankey_df <-
+    function(df, col_1, col_2, ord_by = NA, sep = 0.02, x = 1) {
+    
+    gap <- sep*nrow(df)
+    
+    df_set <-
+            df %>%
+        #assign variables
+            select_(col_1 = col_1, 
+                    col_2 = col_2) %>% 
+            mutate(group = paste(col_1, col_2)) %>%
+        #roll up data
+            group_by(group, col_1, col_2) %>% 
+            summarise(N = n()) %>%
+            group_by(col_1) %>% mutate(n_col_1 = sum(N))  %>% 
+            group_by(col_2) %>% mutate(n_col_2 = sum(N))  %>% 
+            ungroup() %>% 
+        #line up y-positions for col_1
+            arrange(n_col_1, col_1, n_col_2) %>% 
+            mutate(add_gap_1 = (col_1 == lag(col_1, default = first(col_1))),
+                   y1 = cumsum(N + ifelse(add_gap_1, 0, gap))) %>% 
+            ungroup() %>% 
+        #repeat for col_2
+            arrange(n_col_2, N) %>% 
+            mutate(add_gap_2 = (col_2 == lag(col_2, default = first(col_2))),
+                   y2 = cumsum(N + ifelse(add_gap_2, 0, gap)))
+    
+    
+    df_final <-
+        df_set %>% 
+        #rescale col_1 y values
+        mutate(y1 = y1 + (max(y2) - max(y1))) %>% 
+                   #change_range(y1, (max(y2) - max(y1)), max(y2))) %>% 
+        mutate(height = y2 - y1) %>% 
+        unnest(y_curve = list(sigmoid(height)),
+               x = list(1:11)) %>% 
+        mutate(high = y1 + (y_curve * height),
+               low = high - N) %>%
+        
+        mutate()
+    }
+```
+    
+```{r test_data}
+test_data <- 
+    msleep %>% 
+    #mutate(order = fct_lump(order, 5) %>% as.character()) %>% 
+    group_by(order, vore) %>% 
+    #filter(max(row_number()) > 1) %>% 
+    select(order, vore, genus, name) %>% 
+    arrange(order, vore, genus, name) %>% 
+    replace_na(list(vore = "other"))
+
+a <- make_sankey_df(test_data, col_1 = "vore", col_2 = "order")
+b <- a %>% filter(x == 1) %>% arrange(n_col_1, col_1, n_col_2)
+```
+
+```{r test_plot}
+
+ggplot(a) +
+    geom_ribbon(aes(x = x, ymax = high, ymin = low,
+                    group = group, fill = col_1), alpha = 0.25) +
+    geom_rect(data = filter(a, x %in% c(min(x), max(x))),
+        aes(xmin = x - 0.1, xmax = x + 0.1, 
+            ymin = low, ymax = high+0.5,
+            group = group), fill = "black") +
+    guides(fill = F, color = F) +
+    geom_text(
+        data = a %>% group_by(col_1) %>% filter(x == 1) %>% 
+            summarise(x = 1, high = max(high)),
+        aes(x = x, y = high, label = col_1),
+        hjust = 1, nudge_x = -0.2
+        ) +
+    geom_text(
+        data = a %>% group_by(col_2) %>% filter(x == 11) %>% 
+            summarise(x = 11, high = max(high)),
+        aes(x = x, y = high, label = col_2),
+        hjust = 0, nudge_x = 0.2
+        ) +
+    scale_x_continuous(limits = c(0, 13), expand = c(0,0)) +
+    theme(panel.background = element_rect(fill = "white"),
+          axis.text.y = element_blank(),
+          axis.ticks = element_blank(),
+          axis.title = element_blank())
+```
+
+
+#Tutorial
+[tidyverse tutorial](http://ggplot2.tidyverse.org/reference/geom_ribbon.html)
+```{r from_tutorial}
+huron <- 
+    tibble(year = 1875:1972, 
+           level = as.vector(LakeHuron))
+
+ggplot(huron, aes(year)) +
+    geom_ribbon(aes(ymin = level - 1, 
+                    ymax = level + 1), 
+                fill = "grey70")
+```
