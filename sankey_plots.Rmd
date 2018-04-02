@@ -15,25 +15,6 @@ library(tidyverse)
 library(forcats)
 ```
 
-#Formulas
-```{r functions}
-sigmoid <- 
-    function(height){
-      x = c(-4,-3,-2,-1,0,1,2,3,4)
-      c(0, (1/(1+exp(-x))), 1)
-    }
-
-    sigmoid(1)
-    sigmoid(4)
-
-change_range <- 
-    function(x, new_min, new_max){
-        (x - min(x))/(max(x)-min(x)) * (new_max - new_min) + new_min 
-    }
-    
-    change_range(c(0:10), -10, 10)
-```
-
 #hardcoded working example
 ```{r as_lines}
 df <-
@@ -42,7 +23,7 @@ df <-
          y2 = seq(0, 20, length.out = 10),
          h = y2-y1,
          group_2 = rep(letters[1:5],each = 2)) %>% 
-    unnest(y_curve = list(sigmoid(h)),
+    unnest(y_curve = list(sigmoid),
          x = list(1:11)) %>% 
     mutate(y = y1 + (y_curve*h))
 
@@ -57,7 +38,7 @@ df <-
          N = 20:11, 
          y1 = cumsum(N + 5),
          y2 = seq(-100, 250, length.out = 10)) %>% 
-    unnest(y_curve = list(sigmoid(h)),
+    unnest(y_curve = list(sigmoid),
          x = list(1:11)) %>% 
     group_by(group) %>%
     arrange(x) %>% 
@@ -108,11 +89,10 @@ make_sankey_df <-
     
     df_final <-
         df_set %>% 
-        #rescale col_1 y values
+        #bump up col_1 y values
         mutate(y1 = y1 + (max(y2) - max(y1))) %>% 
-                   #change_range(y1, (max(y2) - max(y1)), max(y2))) %>% 
         mutate(height = y2 - y1) %>% 
-        unnest(y_curve = list(sigmoid(height)),
+        unnest(y_curve = list(sigmoid),
                x = list(1:11)) %>% 
         mutate(high = y1 + (y_curve * height),
                low = high - N) %>%
@@ -144,21 +124,27 @@ test_data <-
     arrange(order, vore, genus, name) %>% 
     replace_na(list(vore = "other"))
 
-a <- make_sankey_df(test_data, col_1 = "vore", col_2 = "order")
-b <- a %>% filter(x == 1) %>% arrange(n_col_1, col_1, n_col_2)
+test_sankey <- 
+    make_sankey_df(test_data, col_1 = "vore", col_2 = "order")
+
+base_df <- #just first row of sankey df, for testing results
+    test_sankey %>% 
+    filter(x == 1) %>% 
+    arrange(n_col_1, col_1, n_col_2)
 ```
 
 ```{r test_plot}
-ggplot(a) +
+ggplot(test_sankey) +
     geom_ribbon(aes(x = x, ymax = high, ymin = low, group = group, fill = col_1), 
                 alpha = 0.25) +
-    geom_rect(data = filter(a, x %in% c(min(x), max(x))),
-              aes(xmin = x - 0.1, xmax = x + 0.1, ymin = low, ymax = high+0.5, group = group),
+    geom_rect(data = filter(test_sankey, x %in% c(min(x), max(x))),
+              aes(xmin = x - 0.1, xmax = x + 0.1, 
+                  ymin = low, ymax = high, group = group),
               fill = "black") +
     guides(fill = F, color = F) +
-    geom_text(data = sankey_label(a, "col_1", "left"),
+    geom_text(data = sankey_label(test_sankey, "col_1", "left"),
               aes(x = x, y = high, label = col_1), hjust = 1, nudge_x = -0.2) +
-    geom_text(data = sankey_label(a, "col_2", "right"),
+    geom_text(data = sankey_label(test_sankey, "col_2", "right"),
               aes(x = x, y = high, label = col_2), hjust = 0, nudge_x = 0.2) +
     scale_x_continuous(limits = c(0, 13), expand = c(0,0)) +
     theme(panel.background = element_rect(fill = "white"),
@@ -178,5 +164,6 @@ huron <-
 ggplot(huron, aes(year)) +
     geom_ribbon(aes(ymin = level - 1, 
                     ymax = level + 1), 
-                fill = "grey70")
+                fill = "grey70") +
+    geom_line(aes(y = level))
 ```
