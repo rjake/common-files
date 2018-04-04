@@ -105,7 +105,7 @@ make_sankey_df <-
 ```{r fx_labels}
 sankey_label <-
     function(sankey_df, col, side) {
-        find_x = ifelse(side == "left", min(df$x), max(df$x))
+        find_x = ifelse(side == "left", min(sankey_df$x), max(sankey_df$x))
         
         sankey_df %>% 
             group_by_(col) %>% 
