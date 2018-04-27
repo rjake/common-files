@@ -1,0 +1,111 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(forcats)
+library(nycflights13)
+
+get_data <- 
+    flights %>% 
+    sample_frac(1/100)
+
+eval_var <- "dep_delay"
+
+get_cols <-
+    colnames(flights %>% select_if(is.character))
+
+prep_data <-
+    get_data %>% 
+    mutate(get_y = get(eval_var),
+           dv = as.integer(get_y > 0),
+           dv_IND = 0) %>% 
+    mutate_at(vars(contains("_IND")), funs(as.character)) %>% 
+    filter(!is.na(dv)) %>% 
+    select(one_of(get_cols), hour, month, dv, get_y) %>% 
+    mutate(test = month<10)
+
+get_dv_freq <- mean(prep_data$dv)
+
+col_values <-
+    prep_data %>% 
+    summarise_all(funs(n_distinct)) %>% 
+    gather(column, unique) %>% 
+    mutate(col_ord = row_number()) %>% 
+    arrange(unique) %>% 
+    filter(between(unique, 2, 20),
+           column != "dv")
+```
+
+```{r}
+eval_freq <-
+    function(col, col_index){
+    prep_data %>% 
+    select(col_index, dv) %>% 
+    group_by(.[[1]]) %>% 
+    summarise(freq_dv = mean(dv)*100,
+              n = n()) %>% 
+    filter(n > 1) %>% 
+    mutate(prop = n/sum(n)) %>% 
+    summarise(col = col,
+              distinct = n_distinct(.[[1]]),
+              min = min(freq_dv),
+              max = max(freq_dv),
+              expected = get_dv_freq*100,
+              sd = sd(freq_dv),
+              var = var(freq_dv),
+              span = max(freq_dv) - min(freq_dv))
+}
+
+
+get_results <-
+    eval_freq(col_values$column[1], col_values$col_ord[1])
+
+for(i in 2:nrow(col_values)){
+    get_results <-
+        rbind(get_results,
+              eval_freq(col_values$column[i], col_values$col_ord[i])
+              )%>% 
+        arrange(desc(span))
+}
+
+#View(get_results)
+
+```
+
+```{r}
+make_boxplot <-
+    function(var){
+        prep_data %>% 
+        mutate(get_x = get(var) %>% factor(),
+               get_x = fct_reorder(get_x, get_y)) %>% 
+        ggplot() +
+            geom_hline(yintercept = 0) +
+            geom_boxplot(aes(x = get_x, y = get_y), 
+                         varwidth = T, 
+                         outlier.color = "grey60",
+                         outlier.alpha = .3) +
+            geom_label(aes(x = get_x, 
+                           y = ..count..-..count..-15,
+                           label = ..count..),
+                                    #paste0(round(..count../1000, 1), "K")), 
+                       stat = "count",
+                       nudge_x = 0.3, alpha = .9, label.size = NA, hjust = 0) +
+            coord_flip(ylim = c(-20, 75)) +
+            labs(title = paste0(eval_var, " by ", var),
+                 x = var,
+                 y = eval_var)
+    }
+
+make_boxplot(get_results$col[1]) #carrier
+make_boxplot(get_results$col[2]) #hour
+make_boxplot(get_results$col[3]) #month
+make_boxplot(get_results$col[4]) #origin
+make_boxplot(get_results$col[5]) #test
+```
