@@ -1,0 +1,169 @@
+---
+title: "Biking @ Penn"
+author: "Jake"
+date: "June 23, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=F)
+```
+
+```{r}
+setwd("J:/Portfolio/Biking@Penn")
+library(tidyverse)
+library(stringr)
+library(ggmap)
+
+get_intersections <- read_csv("get_intersections.csv")
+get_centroids <- read_csv("get_centroids.csv")
+get_routes <- read_csv(make_routes, "make_routes.csv")
+```
+
+```{r}
+ggplot() +
+    geom_point(data = get_centroids, aes(X,Y), color = "blue") +
+    geom_point(data = get_intersections, aes(X,Y), color = "orange") +
+    theme_classic()
+```
+
+```{r}
+prep_routes <-
+    make_routes %>% 
+    left_join(get_centroids, by = c("centroid" = "id"))
+    group_by()
+    
+    
+
+```
+
+
+
+
+
+
+
+```{r}
+a <-
+    route(from = "39.948614,-75.2184281",
+      to = "39.9522327,-75.1947939",
+      mode = "driving",
+      structure = "route")
+
+b <-
+    route(from = "39.948614,-75.2184281",
+      to = "39.9522327,-75.1947939",
+      mode = "walking",
+      structure = "route")
+
+ggplot() +
+    geom_path(data = a, aes(x = lon, y = lat), color = "red", size = 2) +
+    geom_path(data = b, aes(x = lon, y = lat), size = 1)
+
+a1 <- 
+    make_routes %>% 
+    filter(route == "08 29", type == "driving")
+
+ggplot() +
+    geom_path(data = prep_routes 
+              #%>% slice(1:100)
+              , 
+              aes(x = lon, 
+                  y = lat, 
+                  group = route, 
+                  color = type), 
+              alpha = .2,
+              size = 1) +
+    #geom_text(data = get_intersections, aes(X,Y, label = id), size = 8) +
+    #geom_text(data = get_centroids, aes(X,Y, label = id), color = "blue") +
+    theme_classic()
+
+sum(a$miles, na.rm = T)
+sum(b$miles, na.rm = T)
+sum(a$minutes, na.rm = T)
+sum(b$minutes, na.rm = T)
+
+routeQueryCheck()
+```
+
+#get csv's from shp
+```{r make_csv, eval = F}
+library(sf)
+get_intersections <-
+    st_read("penn_street_intersections.shp") %>% 
+    #filter(Direction != "W") %>% 
+    cbind(st_coordinates(.)) %>% 
+    mutate(id = row_number() %>% str_pad(., 2, "l","0"),
+           start = paste(Y, X, sep = ",")) %>% 
+    st_set_geometry(NULL)
+
+get_centroids <-
+    st_read("penn_building_centroids.shp") %>% 
+    cbind(st_coordinates(.)) %>% 
+    mutate(id = row_number() %>% str_pad(., 2, "l","0"),
+           end = paste(Y, X, sep = ",")) %>% 
+    st_set_geometry(NULL)
+
+write_csv(get_intersections, "get_intersections.csv")
+write_csv(get_centroids, "get_centroids.csv")
+```
+
+#data prep
+```{r prep_list, eval = F}
+get_directions <- 
+    expand.grid(
+        intersection = get_intersections$id,
+        centroid = get_centroids$id,
+        type = c("driving", "walking"),
+        stringsAsFactors = F,
+        KEEP.OUT.ATTRS = F) %>%
+    left_join(get_intersections %>% 
+                  select(id, start), by = c("intersection" = "id")) %>%
+    left_join(get_centroids %>% 
+                  select(id, end), by = c("centroid" = "id")) %>%
+    mutate(loc_pair = paste(intersection, centroid),
+           route = paste(loc_pair, type))
+```
+
+```{r loop_function, eval = F}
+get_route <- 
+    function(i) {
+        route(from = get_directions$start[i],
+              to = get_directions$end[i], 
+              mode = get_directions$type[i], 
+              structure = "route") %>%
+        mutate(loc_pair = get_directions$loc_pair[i],
+               route = get_directions$route[i],
+               type = get_directions$type[i],
+               intersection = get_directions$intersection[i],
+               centroid = get_directions$centroid[i])
+    }
+
+make_routes <- get_route(1)
+
+```
+
+#ggmap routes loop
+```{r loop, eval = F}
+time_diff <-
+    function(x){
+        difftime(Sys.time(), x, units = "secs") %>% as.numeric() %>% floor()
+    }
+
+time_start <- Sys.time()
+
+for(i in 2:nrow(get_directions)){
+
+    make_routes <- rbind(make_routes, get_route(i))
+    
+    Sys.sleep(0.5)
+    
+    print(paste(i, "-", time_diff(time_start), 'seconds'))
+}
+
+
+routeQueryCheck() #check to see how much of quota is used (2500)
+
+write_csv(make_routes, "make_routes.csv")
+
+```
