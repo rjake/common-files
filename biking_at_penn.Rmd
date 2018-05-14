@@ -183,6 +183,7 @@ write_csv(make_routes, "make_routes.csv")
 
 ```{r}
 library(googleway)
+library(geosphere)
 
 key <- "AIzaSyAQJHKIblv7YkaJsaACb0PWDeCRFBIFQyo"
 
@@ -227,6 +228,35 @@ for(i in 2:nrow(get_directions)){
     
     print(paste(i, "-", time_diff(time_start), 'seconds'))
 }
+
+time_diff(time_start) - 321303
+
+write_csv(make_routes, "make_routes_googleway.csv")
+
+
+
+route_distances <-
+    make_routes %>%
+    #slice(1:1000) %>% 
+    group_by(route) %>% 
+    mutate(lat2 = ifelse(ord == max(ord), lat, lead(lat)),
+           lon2 = ifelse(ord == max(ord), lon, lead(lon))) %>% 
+    ungroup() %>% 
+    rowwise() %>%
+    mutate(dist = distHaversine(c(lon, lat), c(lon2, lat2), r = 3958.756)) %>% 
+    ungroup()
+
+write_csv(route_distances, "make_routes_googleway.csv")
+
+route_agg <-
+    route_distances %>% 
+    group_by(loc_pair, route, type, intersection) %>% 
+    summarise(dist = sum(dist)) %>% 
+    group_by(loc_pair) %>% 
+    mutate(abs_diff = ifelse(dist == min(dist), 0, max(dist)-min(dist))) %>% 
+    ungroup()
+
+write_csv(route_agg, "route_agg.csv")
 
 
 ggplot(make_routes, aes(lon, lat, label = ord)) +
