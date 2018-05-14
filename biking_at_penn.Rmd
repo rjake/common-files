@@ -38,17 +38,21 @@ prep_routes <-
 ```
 
 
+to get polylines, look at bottom answer: `googleway` package
+
+https://stackoverflow.com/questions/30270011/ggmap-route-finding-doesnt-stay-on-roads
 
 
 
 
 
 ```{r}
-a <-
-    route(from = "39.948614,-75.2184281",
-      to = "39.9522327,-75.1947939",
+a <-# loc_pair "16 19"
+    route(from = "39.9409445009992,-75.1976984808205",
+      to = "39.9549319483263,-75.1930786028087",
       mode = "driving",
-      structure = "route")
+      structure = "route",
+      output = "all")
 
 b <-
     route(from = "39.948614,-75.2184281",
@@ -84,6 +88,14 @@ sum(a$minutes, na.rm = T)
 sum(b$minutes, na.rm = T)
 
 routeQueryCheck()
+
+
+?route
+
+
+a$routes[[1]]$overview_polyline
+
+a$routes[[1]]$legs[[1]]$steps[[1]]$polyline
 ```
 
 #get csv's from shp
@@ -167,3 +179,60 @@ routeQueryCheck() #check to see how much of quota is used (2500)
 write_csv(make_routes, "make_routes.csv")
 
 ```
+
+
+```{r}
+library(googleway)
+
+key <- "AIzaSyAQJHKIblv7YkaJsaACb0PWDeCRFBIFQyo"
+
+set_key(key = key)
+google_keys()
+
+
+get_route <- 
+    function(i) {
+        route_list <-
+         google_directions(origin = get_directions$start[i],
+                          destination = get_directions$end[i],
+                          #key = mykey,
+                          mode = get_directions$type[i], 
+                          avoid = "highways",
+                          simplify = TRUE)
+        
+    #return dataframe:
+        decode_pl(route_list$routes$overview_polyline$points) %>% 
+        mutate(loc_pair = get_directions$loc_pair[i],
+               route = get_directions$route[i],
+               type = get_directions$type[i],
+               intersection = get_directions$intersection[i],
+               centroid = get_directions$centroid[i],
+               ord = row_number())
+    }
+
+make_routes <- get_route(1)
+
+time_diff <-
+    function(x){
+        difftime(Sys.time(), x, units = "secs") %>% 
+            as.numeric() %>% 
+            floor()
+    }
+
+for(i in 2:nrow(get_directions)){
+
+    make_routes <- rbind(make_routes, get_route(i))
+    
+    Sys.sleep(0.5)
+    
+    print(paste(i, "-", time_diff(time_start), 'seconds'))
+}
+
+
+ggplot(make_routes, aes(lon, lat, label = ord)) +
+    geom_path() +
+    geom_text() +
+    coord_sf()
+
+
+
