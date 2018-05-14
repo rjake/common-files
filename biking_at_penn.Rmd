@@ -185,8 +185,6 @@ write_csv(make_routes, "make_routes.csv")
 library(googleway)
 library(geosphere)
 
-key <- "AIzaSyAQJHKIblv7YkaJsaACb0PWDeCRFBIFQyo"
-
 set_key(key = key)
 google_keys()
 
