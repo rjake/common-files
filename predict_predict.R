@@ -19,6 +19,12 @@ base_data <-
     mutate_if(is.numeric, funs(ntile(., 10))) %>% 
     mutate(id = row_number())
 
+slope <-
+    function(y2, y1, x2, x1){
+        (y2-y1)/(x2-x1)
+    }
+
+slope(.25,0,-.3,0)
 
 get_values <-
     base_data %>% 
@@ -38,47 +44,110 @@ get_values <-
            p_value = sum_value/n,
            d_value = p_value - p_field,
            abs_d_value = abs(d_value),
-           d_rep = d_value * rep_field)
+           d_rep = d_value * rep_field) %>% 
+    group_by(field) %>% 
+    mutate(v_field = var(p_value)) %>% 
+    ungroup() %>% 
+    mutate(d_x_v = d_value * v_field,
+           slope_value = abs(slope(v_field, 0, d_value, 0)),
+           s_x_d = slope_value * d_value)
+
 
 compare_values <-
     base_data %>% 
     gather(field, value, -c(id, var)) %>% 
-    left_join(get_values %>% 
-              select(field, value, n, rep_field, p_value, d_value, abs_d_value, d_rep)
-              ) %>% 
+    left_join(get_values) %>% 
     filter(complete.cases(.))
+
+
 
 final_estimate <-
     compare_values %>% 
     group_by(var, id) %>% 
     summarise(sum_diff = sum(d_value),
-              sum_diff_side = sum_diff > 0,
+              side_diff = sum_diff > 0,
+              sum_sxd = sum(s_x_d),
+              side_sum_sxd = sum_sxd > 0,
+              #mean_slope = mean(slope_value),
+              #side_mean_slope = mean_slope > 0,
+              sum_dxv = sum(d_x_v),
+              side_dxv = sum_dxv > 0,
               mean_p_value = mean(p_value),
-              mean_p_side = mean_p_value > mean(base_data$var)) %>% 
+              side_mean = mean_p_value > mean(base_data$var)) %>% 
     ungroup() %>% 
-    mutate(diff_correct = sum_diff_side == var,
-           mean_correct = mean_p_side == var)
+    mutate(sum_sxd_correct = side_sum_sxd == var,
+           #mean_slope_correct = side_mean_slope == var,
+           diff_correct = side_diff == var,
+           dxv_correct = side_dxv == var,
+           mean_correct = side_mean == var)
 
 
 ggplot(final_estimate) + geom_count(aes(var, sum_diff, color = diff_correct))
 table(final_estimate$diff_correct)
 mean(final_estimate$diff_correct)
 
+ggplot(final_estimate) + geom_count(aes(var, sum_sxd, color = sum_sxd_correct))
+table(final_estimate$sum_sxd_correct)
+mean(final_estimate$sum_sxd_correct)
+
+ggplot(final_estimate) + geom_count(aes(var, sum_diff, color = diff_correct))
+table(final_estimate$dxv_correct)
+mean(final_estimate$dxv_correct)
+
 ggplot(final_estimate) + geom_count(aes(var, mean_p_value, color = mean_correct))
 table(final_estimate$mean_correct)
 mean(final_estimate$mean_correct)
 
 
-ggplot(compare_values %>% filter(id == 2), 
-       aes(abs_d_value, p_value, label = value, color = value)) +
-    geom_hline(aes(yintercept = mean(base_data$var))) +
-    #geom_label_repel(size = 2) +
-    xlim(0,1) + ylim(0,1) +
+one_obs_est <- final_estimate %>% filter(id == 2)
+
+one_obs_profile <- 
+    compare_values %>% filter(id == 2) %>% 
+    mutate(est_x = median(d_value),
+           est_y = median(v_field))
+    #left_join(one_obs_est %>% select(id, ))
+    
+
+
+ggplot(get_values, aes(x = d_value, y = v_field, color = reorder(field, -v_field))) +
+    geom_line(aes(group = field), color = "grey60", alpha = .2) +
+    geom_segment(aes(xend = 0, yend = 0), alpha = .2) +
+    geom_segment(data = one_obs_profile, 
+                 aes(xend = est_x, yend = est_y), 
+                 color = "black", size = 1) +
+    geom_point(data = one_obs_profile, color = "black", shape = 21, size = 6, stroke = 1.5) +
+    geom_point(data = one_obs_profile, aes(est_x, est_y),
+               color = "black",
+               #color = "blue", fill = "white", shape = 21, 
+               size = 7) +
+    geom_text(data = one_obs_profile, aes(est_x, est_y), label = "?", color = "white", size = 4) +
+    geom_point(aes(size = n), alpha = .5) +
+    theme(panel.background = element_rect(fill = "white")) +
+    guides(size = F) +
+    labs(x = "group distance from pop proportion",
+         y = "variance of x",
+         color = "variable")
+
+
+
+
+filter(get_values, field == "vore") %>% 
+    group_by(field) %>% 
+    mutate(v_field = var(p_value)) %>% 
+    ungroup()
+
+ggplot(compare_values %>% filter(id == 61), 
+       aes(d_value, v_field, label = paste(field, "\n",value), color = value)) +
+    #geom_vline(aes(xintercept = 0)) +
+    geom_label_repel(size = 2) +
     geom_point(aes(color = value)) +
+    geom_segment(aes(x = d_value, y = v_field, xend = 0, yend = 0)) + 
+    #xlim(0,1) + 
+    #ylim(0,1) +
     theme(legend.position = "none")
 
 
-ggplot(get_values, aes(abs_d_value, p_value, label = value, color = value)) +
+ggplot(get_values, aes(d_x_v, p_value, label = value, color = value)) +
     facet_wrap(~field) +
     geom_hline(aes(yintercept = p_field)) +
     geom_label_repel(size = 2) +
