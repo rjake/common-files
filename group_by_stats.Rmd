@@ -1,0 +1,57 @@
+lm_group_by <-
+    function(df, y, x, group){
+        df %>% 
+        filter(complete.cases(.)) %>% 
+        mutate(metric = y) %>% 
+        select_(group = group,
+                x = x,
+                y = y) %>% 
+        group_by(group) %>% 
+        mutate(n = n()) %>% 
+        group_by(group, n) %>% 
+        do(broom::tidy(lm(y ~ x, data = ., na.action = na.exclude))) %>% 
+        ungroup() %>% 
+        filter(term != '(Intercept)',
+               n > 2) %>% 
+        mutate(term = x,
+               predict = y,
+               significant = case_when(p.value < 0.001 ~ "***",
+                                       p.value < 0.01 ~ "**",
+                                       p.value < 0.05 ~ "*",
+                                       TRUE ~ "")) %>% 
+        arrange(p.value) %>% 
+        select(predict, term, group, n, everything())
+    }
+
+lm_group_by(iris, x = "Petal.Length", y = "Petal.Width", group = "Species")
+lm_group_by(msleep, x = "sleep_cycle", y = "brainwt", group = "vore")
+
+lg_group_by <-
+    function(df, y, x, group){
+        df %>% 
+            filter(complete.cases(.)) %>% 
+            mutate_(y = y,
+                    x = x,
+                    group = group) %>%
+            select(group = group,
+                    x = x,
+                    y) %>% 
+            group_by(group) %>% 
+            mutate(n = n()) %>% 
+            group_by(group, n) %>% 
+            do(broom::tidy(glm(y ~ x, data = ., family = "binomial", na.action = na.exclude))) %>% 
+            ungroup() %>% 
+            filter(term != '(Intercept)',
+                   n > 2) %>% 
+            mutate(term = x,
+                   predict = y,
+                   significant = case_when(p.value < 0.001 ~ "***",
+                                           p.value < 0.01 ~ "**",
+                                           p.value < 0.05 ~ "*",
+                                           TRUE ~ "")) %>% 
+            arrange(p.value) %>% 
+            select(predict, term, group, n, everything())
+    }
+
+lm_group_by(df = msleep, x = "order", y = "conservation == 'lc'", group = "vore")
+
