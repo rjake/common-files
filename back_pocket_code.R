@@ -18,20 +18,26 @@ library(forcats)
     change_range(c(0:10), 0, 255) %>% as.integer()
 
 #round to any increment
-    round_down_dec <- 
-        function (x, accuracy) {
-          x_sign <- sign(x)
-          x_int <- abs(as.integer(x))
-          x_dec <- abs(x) - x_int
-          
-          dec_round <-(x_dec%/%accuracy) * accuracy
-          
-          return((x_int * x_sign) + dec_round)
-        } 
+    round_down <-
+        function (x, accuracy, integer = F) {
+            x_sign <- sign(x)
+            x_int <- abs(as.integer(x))
+            x_dec <- abs(x) - x_int
+            
+            if (integer == F) {
+                get_round <-(x_dec%/%accuracy) * accuracy
+                final <- (x_int + get_round) * x_sign
+            } else {
+                get_round <-(x_int%/%accuracy) * accuracy
+                final <- (get_round) * x_sign
+            }
+            
+            return(final)
+        }
 
-    round_down_dec(5.343, 0.08)
-    round_down_dec(seq(0, 20, 2), 5)
-    round_down_dec(seq(0, 20, 2), 3)
+    round_down(5.343, 0.08)
+    round_down(seq(0, 20, 2), 5, T)
+    round_down(seq(0, 20, 2), 3, T)
     
 #add commas to big #s
     nice_int <- 
