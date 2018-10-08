@@ -73,23 +73,16 @@ library(forcats)
 
 #quickly enclose right, left, or both sides of an object with a symbol  
     enclose <- 
-        function(x, symbol = "p", side = "b"){
-            symbol <-
-                case_when(
-                  symbol == "p"       ~ "()",
-                  symbol == "dq"      ~ '""',
-                  symbol == "sq"      ~ "''",
-                  symbol == "b"       ~ "[]",
-                  symbol == "curlyb"  ~ "{}"
-                )
-            start <- ifelse(side == "r", "", str_sub(symbol, 1, 1))
-            end <- ifelse(side == "l", "", str_sub(symbol, 2, 2))
-            
+        function(x, symbol = "{_}", side = "b"){
+            find_break <- str_locate(symbol, "_")[1]
+            start <- str_sub(symbol, 1, find_break-1)
+            end <- str_sub(symbol, find_break+1)
             return(paste0(start, x, end))    
         }
-  
-    enclose("this is a test sentence", "curlyb")
-    enclose(nice_pct(2/7), "p", "r")
+    
+    enclose("this is a test sentence", "{_}")
+    enclose(seq(0,10,2), "_%")
+    enclose(seq(0,10,2), "$_ each")
 
 
 
