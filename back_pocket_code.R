@@ -102,19 +102,20 @@ library(forcats)
 #dumbbells
     mpg %>% 
     group_by(manufacturer) %>% 
-    filter(row_number() > 5, n_distinct(model) > 2) %>% 
+    filter(row_number() > 5, 
+           n_distinct(model) > 2) %>% 
     ggplot(aes(fct_reorder(model, hwy, fun = min), hwy)) +
         facet_grid(manufacturer~., scales = "free", space = "free") +
         coord_flip() +
         #bars
         stat_summary(fun.ymin = min, fun.ymax = max, color = "grey50", geom = "linerange") +
         #interesting ladder effect
-        stat_summary(aes(group = 1), fun.ymin = min, fun.ymax = max, geom = "ribbon", alpha = .1, fill = "blue") +
+        #stat_summary(aes(group = 1), fun.ymin = min, fun.ymax = max, geom = "ribbon", alpha = .1, fill = "blue") +
         #connect mins
-        stat_summary(aes(group = 1), fun.y = min, alpha = .5, color = "orange", size = 1.2, geom = "line") +
+        stat_summary(aes(group = 1), fun.y = min, alpha = .5, color = "grey", size = 1.2, geom = "line") +
         #points
         stat_summary(fun.y = max, color = "grey50", geom = "point", size = 1.5) +
-        stat_summary(fun.y = min, shape = 21, fill = "orange", color = "black", stroke = 1, geom = "point", size = 2) +
+        stat_summary(fun.y = min, shape = 21, fill = "orange", color = "black", stroke = 1, geom = "point", size = 1.5) +
         #extra
         expand_limits(y = 0) + 
         xlab("") +
