@@ -1,0 +1,126 @@
+---
+title: "How Many Observations"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, comment = "")
+```
+
+```{r}
+library(tidyverse)
+options(scipen = 999)
+```
+
+```{r}
+goal <- 0.60
+
+get_zscore <-
+    function(x){
+        qnorm(1-(1-x)/2) %>% round(2)
+    }
+
+get_zscore(.995)
+
+find_n <-
+    function(p, z, se){
+        #p <- 0.1; n <- 200; z <- get_zscore(0.8); se <- z*sqrt( (p*(1-p)) / n) #0.041771
+        ( sqrt(p*(1-p)) / (se/z) )^2  %>% floor()
+    }
+
+find_n_pdiff <-
+    function(p, z, se){
+        #p <- 0.1; n <- 200; z <- get_zscore(0.8); 
+        #se <- z*sqrt( (var_goal) + (samp_var)/n) 
+        var_goal <- sqrt( (.6*(1-.6)) / 200 )
+        var_sample <- (p*(1-p))
+    
+        ( (sqrt(p*(1-p)) / (se/z)) - var_goal)^2  %>% floor()
+    }
+
+find_n_pdiff(.55, 1.96, 0.05)
+```
+
+```{r}
+get_values <-
+    tibble(p = seq(0.02, goal - 0.02, by = 0.02)) %>%
+    expand(p, 
+           conf = c(90, 95, 99, 99.5)) %>%
+    mutate(z = get_zscore(conf/100),
+           dist = round(goal-p, 2)) %>%
+    mutate(min_n = find_n(p, z, dist),
+           min_n_pdiff = find_n_pdiff(p, z, dist)) %>%
+    filter(min_n > 1) %>% 
+    mutate_at(vars(-c(min_n, min_n_pdiff)), as.factor)
+
+plot_colors <- c(paste0("grey", (3:1/4)*100), "blue")
+
+p_hat <- expression(hat(p))
+
+plot_table <-
+    ggplot(get_values, aes(dist, conf)) +
+    geom_tile(fill = "white") +
+    geom_text(aes(label = min_n, color = z)) +
+    #geom_text(aes(y = "dist.", label = dist)) +
+    geom_tile(aes(y = "p-hat"), fill = "grey95") +
+    geom_text(aes(y = "p-hat", label = p)) +
+    scale_color_manual(values = plot_colors) +
+    theme(#panel.background = element_rect(fill = "white"),
+          legend.position = "none") +
+    labs(x = paste0("Distance from Goal (", goal, ")"),
+         y = "conf.")
+
+#plot_table
+
+plot_labs <-
+    get_values %>% 
+    filter(as.numeric(z) == max(as.numeric(z)))
+
+plot_distribution <-
+    ggplot(get_values, aes(dist, min_n)) +
+    geom_line(aes(group = p), size = 3, color = "white") +
+    geom_point(aes(color = z), size = 3) +
+    geom_text(data = plot_labs, aes(y = min_n * 1.3, label = min_n), hjust = 0.5) +
+    scale_color_manual(values = plot_colors) +
+    scale_y_continuous(trans = "log", breaks = c(1, 10, 50, 100, 500, 1000, 5000)) +
+    theme(panel.grid.minor = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.title.x = element_blank(), 
+          #plot.subtitle = element_text(hjust = 1),
+          legend.position = "none") +
+    labs(y = "Minimum Obs. Needed (at log intervals)")
+
+#plot_distribution
+```
+
+### Minimum N Needed Given Distance of Sample Mean from Goal (0.6)
+
+With a goal of 0.6, a sample proportion of 0.5 would be 0.1 from the goal. Holding the SE constant at 0.1 and the conf. at 99.5%, the minimum observations needed to reject the null hypothesis that the means are equal is 197.
+
+Formula: \(N =  \left(\frac{\sqrt{var}} {(SE/z)}\right)^2\)
+&nbsp;&nbsp;&nbsp;&nbsp;
+Example: \(197 = \left(\frac{\sqrt{0.5(1-0.5)}} {(0.1/2.81)}\right)^2\)
+&nbsp;&nbsp;&nbsp;&nbsp;
+Derived using: \(SE\ 0.1 = 2.81 * \sqrt{\frac{0.5(1-0.5)} {197}}\)
+
+```{r echo = F, fig.height = 8, fig.width= 12}
+gridExtra::grid.arrange(plot_distribution, plot_table, 
+                        ncol = 1, heights = c(3,1))
+```
+
+## Questions
+* should I be using this instead [Difference between 2 proportions](https://www.dummies.com/education/math/statistics/how-to-estimate-the-difference-between-two-proportions/) - looks like it returns the same results 
+* should the min n be adjusted to allow for a sample size that results in that distance? For example, 0.52 from 0.6 is 0.08. 0.08/0.6 is 13%. In order to get 13%, there would need to be at least 2/25 charts
+    * `MASS::fractions(1:29/50)`
+    * `MASS:::.rat(1:29/50)$rat`
+    
+    
+    
+```{r echo = F, eval = F}
+#title = "Minimum N Needed Given Distance of Sample Mean from Goal (0.6)",
+    #     subtitle = expression(atop("With a goal of 0.6, a sample proportion of 0.5 would be 0.1 from the goal. Holding the SE constant at 0.1 and the conf. at 99.5%, the min obs needed to reject the null hypothesis that the means are equal is 197.",
+    #                                " N = " ( sqrt(var) / (SE/z) )^2~
+    #                                ", example: 197 = " ( sqrt(0.5*(1-0.5)) / (0.1/2.81) )^2 ~ ", derived using SE of 0.1 = " ~ 2.81 ~"*"~sqrt( 0.5*(1-0.5) / 197))),
+```
+
