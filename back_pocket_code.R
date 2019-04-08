@@ -84,7 +84,21 @@ library(forcats)
     enclose(seq(0,10,2), "_%")
     enclose(seq(0,10,2), "$_ each")
 
-
+#convert comma-separated values to indicators
+convert_to_ind <- function(df, field){
+    df %>% 
+    mutate_(var = field) %>% 
+    distinct(id, var) %>% 
+    unnest(split = str_split(var, ",")) %>%
+    select(-var) %>% 
+    filter(!is.na(split)) %>% 
+    mutate(n = 1,
+           split = 
+               str_replace_all(split, "-", ".") %>% 
+               paste0(field, "_", ., "_ind")) %>%
+    distinct() %>% 
+    spread(split, n, fill = 0)
+}
 
 ####ggplot extras----
 #elipses
