@@ -100,6 +100,12 @@ convert_to_ind <- function(df, field){
     spread(split, n, fill = 0)
 }
 
+#compare data objects of two environments
+data.frame(df = unlist(eapply(.GlobalEnv, is.data.frame))) %>% 
+  rownames_to_column() %>% 
+  filter(df) %>% 
+  mutate(nrow = unlist(eapply(.GlobalEnv, nrow)))
+
 ####ggplot extras----
 #elipses
     ggplot(iris, aes(Petal.Width, Petal.Length, color = Species)) +
