@@ -2,13 +2,13 @@
 library(tidyverse)
 library(forcats)
 
-#Data Wrangling
+# Data Wrangling
   head_tail <- 
       function(x, n){
         slice(x, c(1:n, (n()-(n-1)):n()))
       }
 
-#rescale data
+# rescale data
     change_range <- 
         function(x, new_min, new_max){
             (x - min(x))/(max(x)-min(x)) * (new_max - new_min) + new_min 
@@ -17,7 +17,7 @@ library(forcats)
     change_range(c(0:10), -10, 10)
     change_range(c(0:10), 0, 255) %>% as.integer()
 
-#round to any increment
+# round to any increment
     round_down <-
         function (x, accuracy, integer = F) {
             x_sign <- sign(x)
@@ -39,7 +39,7 @@ library(forcats)
     round_down(seq(0, 20, 2), 5, T)
     round_down(seq(0, 20, 2), 3, T)
     
-#add commas to big #s
+# add commas to big #s
     nice_int <- 
         function(x){
           format(x, big.mark = ",", scientific = F)
@@ -47,7 +47,7 @@ library(forcats)
     
     nice_int(1e6)
 
-#format percents
+# format percents
     nice_pct <- 
         function(fraction, enclose = F, sign = T, d = 0, keep_numeric = F, x100 = T){
             #decimals default to zero unless specified, if convert == F, push it out to 2 places
@@ -71,7 +71,7 @@ library(forcats)
     nice_pct(2/7, x100 = F)
     nice_pct(2/7, d = 4, x100 = F)
 
-#quickly enclose right, left, or both sides of an object with a symbol  
+# quickly enclose right, left, or both sides of an object with a symbol  
     enclose <- 
         function(x, symbol = "{_}", side = "b"){
             find_break <- str_locate(symbol, "_")[1]
@@ -84,7 +84,7 @@ library(forcats)
     enclose(seq(0,10,2), "_%")
     enclose(seq(0,10,2), "$_ each")
 
-#convert comma-separated values to indicators
+# convert comma-separated values to indicators
 convert_to_ind <- function(df, field){
     df %>% 
     mutate_(var = field) %>% 
@@ -100,20 +100,32 @@ convert_to_ind <- function(df, field){
     spread(split, n, fill = 0)
 }
 
-####ggplot extras----
-#elipses
+# compare data objects of two environments
+data.frame(df = unlist(eapply(.GlobalEnv, is.data.frame))) %>% 
+  rownames_to_column() %>% 
+  filter(df) %>% 
+  mutate(nrow = unlist(eapply(.GlobalEnv, nrow)))
+
+# list functions of a package
+ls("package:dplyr")
+
+# list packages loaded
+devtools::session_info()$packages$package
+
+#### ggplot extras----
+# elipses
     ggplot(iris, aes(Petal.Width, Petal.Length, color = Species)) +
         geom_point() +
         stat_ellipse()
 
-#lollipop chart
+# lollipop chart
     ggplot(mpg, aes(fl, displ, color = fl, group = fl)) +
         facet_grid(class~., scales = "free", space = "free") +
         coord_flip() +
         stat_summary(ymin = 0, fun.ymax = max, geom = "linerange", size = 1.5) +
         stat_summary(fun.y = max, geom = "point", size = 3)
 
-#dumbbells
+# dumbbells
     mpg %>% 
     group_by(manufacturer) %>% 
     filter(row_number() > 5, 
