@@ -25,6 +25,7 @@ install.packages(
 		"maptools",
 		"nycflights13",
 		"odbc",
+		"pkgdown",
 		"plotly",
 		"raster",
 		"RColorBrewer",
