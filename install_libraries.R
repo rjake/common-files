@@ -3,6 +3,7 @@ install.packages(
 		#"animation",
 		"corrplot",
 		"data.table",
+		"datapasta",
 		"dbscan",
 		"devtools",
 		"doParallel",
@@ -39,9 +40,12 @@ install.packages(
 		"shinyWidgets",
 		"SnowballC",
 		"stringi",
+		"styler",
 		"tidyverse",
 		"tm",
 		#"TSP
 		"zoo"
 	)
 )
+
+devtools::install_github("rjake/simplecolors")
