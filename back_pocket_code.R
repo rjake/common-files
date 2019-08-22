@@ -84,6 +84,31 @@ library(forcats)
     enclose(seq(0,10,2), "_%")
     enclose(seq(0,10,2), "$_ each")
 
+# binary data
+    is_binary <- function(x) {
+      sort(unique(x)) %>% paste0(collapse = "") == "01"
+    }
+
+
+    replace_01 <- function(x) {
+      val <- gsub('0', "No", x) %>% gsub('1', "Yes", .)
+
+      ifelse(is.na(val), "-", val)
+    }
+
+
+    df <-
+      tibble(
+        not_binary = letters[1:5],
+        binary = c(1, 0, 1, NA, 1),
+        expected = replace_01(binary)
+      )
+
+
+    df %>% 
+      mutate_if(is_binary, replace_01)
+
+
 # convert comma-separated values to indicators
 convert_to_ind <- function(df, field){
     df %>% 
