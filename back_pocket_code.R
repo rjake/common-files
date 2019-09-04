@@ -8,12 +8,39 @@ library(forcats)
         slice(x, c(1:n, (n()-(n-1)):n()))
       }
 
-# snake_case titles 
-  rename_snake_case <- function(x) {
-    tolower(x) %>% 
-      make.unique() %>% 
-      str_replace_all("[^\\w\\d_]+", "_")
+# snake case column names 
+collapse_name <- function(x,
+                          preserve_case = FALSE, 
+                          sep = "_") {
+  x <- make.unique(x)
+  sep <- ifelse(sep == ".", "\\.", sep)
+  
+  if (!preserve_case) {
+    x <- tolower(x)
   }
+  
+  x <- 
+    gsub("[^[:alnum:]]+", sep, x) %>% 
+    sub(paste0("^", sep, "|", sep, "$"), "", .)
+  
+  if (sep == "") {
+    x <- sub("(^.)", "\\L\\1", x, perl = TRUE)
+  }
+  
+  x
+}
+
+test_names <- c(
+  " Phone Number",
+  "N Times Called",
+  "Min Date Called",
+  "First Visit",
+  "Distance To First Visit (Days)"
+)
+
+collapse_name(test_names) # snake_case
+collapse_name(test_names, sep = ".") # orig.r.names
+collapse_name(test_names, preserve_case = T, sep = "") # CamelCase
 
 # rescale data
     change_range <- 
