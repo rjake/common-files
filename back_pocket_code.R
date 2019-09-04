@@ -11,8 +11,7 @@ library(forcats)
 # snake case column names 
 collapse_name <- function(x,
                           preserve_case = FALSE, 
-                          sep = "_") {
-  x <- make.unique(x)
+                          sep = "_") {  
   sep <- ifelse(sep == ".", "\\.", sep)
   
   if (!preserve_case) {
@@ -21,7 +20,8 @@ collapse_name <- function(x,
   
   x <- 
     gsub("[^[:alnum:]]+", sep, x) %>% 
-    sub(paste0("^", sep, "|", sep, "$"), "", .)
+    sub(paste0("^", sep, "|", sep, "$"), "", .) %>%
+    make.unique(sep = "_")
   
   if (sep == "") {
     x <- sub("(^.)", "\\L\\1", x, perl = TRUE)
