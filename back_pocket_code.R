@@ -8,6 +8,13 @@ library(forcats)
         slice(x, c(1:n, (n()-(n-1)):n()))
       }
 
+# snake_case titles 
+  rename_snake_case <- function(x) {
+    tolower(x) %>% 
+      make.unique() %>% 
+      str_replace_all("[^\\w\\d_]+", "_")
+  }
+
 # rescale data
     change_range <- 
         function(x, new_min, new_max){
