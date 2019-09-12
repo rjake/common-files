@@ -3,41 +3,6 @@
 #library(pkgdown)
 #library(beepr)
 
-updatePackageVersion <- function(packageLocation ="."){
-  ## Read DESCRIPTION file
-  desc <- readLines(file.path(packageLocation, "DESCRIPTION"))
-
-  ## Find the line where the version is defined
-  vLine <- grep("^Version\\:", desc)
-
-  ## Extract version number
-  vNumber <- gsub("^Version\\:\\s*", "", desc[vLine])
-
-    ## Split the version number into two; a piece to keep, a piece to increment
-    versionNumber <- strsplit(vNumber, "\\.")[[1]]
-  versionParts <- length(versionNumber)
-  vNumberKeep <- paste(versionNumber[1:(versionParts-1)], sep= "", collapse= ".")
-  vNumberUpdate <- versionNumber[versionParts]
-
-  ## Replace old version number with new one (increment by 1)
-  oldVersion <- as.numeric(vNumberUpdate)
-  newVersion <- oldVersion + 1
-
-  ## Build final version number
-  vFinal <- paste(vNumberKeep, newVersion, sep = ".")
-
-  ## Update DESCRIPTION file (in R)
-  desc[vLine] <- paste0("Version: ", vFinal )
-
-  ## Update the actual DESCRIPTION file
-  writeLines(desc, file.path(packageLocation, "DESCRIPTION"))
-
-  ## Return the updated version number to screen
-  return(vFinal)
-}
-
-# restart R
-
 # documentation and checks
 devtools::document(); beepr::beep(5);
 devtools::load_all(); beepr::beep(5);
@@ -48,8 +13,16 @@ devtools::check(); beepr::beep(5);
 #updatePackageVersion()
 
 
-devtools::install_github("rjake/shinyloadr")
+devtools::load_all()
+load_reactive_objects("inst/Rmd/flexdashboard_demo.Rmd")
+load_reactive_objects("inst/Rmd/test_dashboard.Rmd")
+load_reactive_objects("inst/Rmd/test_dashboard_missing_inputs.Rmd")
+load_reactive_objects("inst/rmd/test_dashboard_no_inputs.Rmd")
+load_reactive_objects("inst/shiny/app.R")
+load_reactive_objects("inst/shiny/server.R")
+load_reactive_objects("inst/shiny/ui.R")
 
+devtools::install_github("rjake/shinysim")
 
 
 # GETTING STARTED ----
@@ -113,3 +86,30 @@ dplyr::filter(edit > "2019-08-03")
 
 lapply(files_to_lint$file, lintr::lint)
 
+# rename package
+library(magrittr)
+files_to_check <-
+  list.files(recursive = TRUE) %>% 
+  .[grep("^(?!docs|man|inst|LICENSE)", ., perl = T)] %>% 
+  c(., ".Rbuildignore")
+
+
+replace_text <- function(x, oldname, newname) {
+  #i = 1; oldname = "shinyloadr"; newname = "shinysim"
+  file <- x
+  
+  file_text <- readr::read_lines(file)
+  
+  new_text <- 
+    stringr::str_replace_all(file_text, oldname, newname)
+
+  write(new_text, file)
+}
+
+for(i in seq_along(files_to_check)) {
+  replace_text(
+    files_to_check[i],
+    oldname = "shinyloadr",
+    newname = "shinysim"
+  )
+}
