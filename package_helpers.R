@@ -113,3 +113,25 @@ for(i in seq_along(files_to_check)) {
     newname = "shinysim"
   )
 }
+
+files_to_check <-
+  list.files(recursive = TRUE) %>% 
+  .[grep("\\.R$", ., perl = T)]
+
+
+find_text <- function(x, phrase) {
+  file <- x
+  
+  tibble(
+    file = x,
+    text = readr::read_lines(file),
+    has = stringr::str_detect(text, phrase)  
+  ) %>% 
+    mutate(line = row_number()) %>% 
+    filter(has) %>% 
+    select(file, line, text)
+}
+
+
+purrr::map_dfr(files_to_check, find_text, phrase = "nocov")
+

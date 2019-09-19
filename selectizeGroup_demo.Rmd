@@ -1,0 +1,70 @@
+---
+title: "selectizeGroup Demo"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    source_code: embed
+    theme: lumen
+    vertical_layout: fill
+runtime: shiny
+---
+
+Sidebar {.sidebar data-width=200}
+----------------------------
+
+```{r}
+library(shinyWidgets)
+library(DT)
+
+selectizeGroupUI(
+  id = "mpg_select",
+  params = list(
+    manufacturer = list(inputId = "manufacturer", title = "Manufacturer:"),
+    model = list(inputId = "model", title = "Model:"),
+    trans = list(inputId = "trans", title = "Trans:"),
+    class = list(inputId = "class", title = "Class:")
+  ), 
+  label = "Filter selection",
+  btn_label = "Clear filters",
+  inline = FALSE 
+)
+```
+<br>
+<br>
+<br>
+Inspired by [this example](https://dreamrs.github.io/shinyWidgets/reference/selectizeGroup-module.html) from `dreamers`.
+
+Column 
+----------------------------
+```{r}
+linked_data <-
+  callModule(
+    module = selectizeGroupServer,
+    id = "mpg_select",
+    data = mpg,
+    vars = c("manufacturer", "model", "trans", "class")
+  )
+
+renderDT({
+  df <- linked_data()
+
+  datatable(
+    df,
+    extensions = c("FixedHeader", "Scroller", "Buttons"),
+    filter = "top",
+    options =
+      list(
+        dom = "Brti",
+        extend = "collection",
+        deferRender = FALSE,
+        scrollY = 450,
+        scroller = TRUE,
+        scrollX = TRUE,
+        fixedHeader = FALSE,
+        buttons = c("copy", "csv", "excel", "pdf", "print"),
+        pageLength = nrow(df),
+        lengthChange = FALSE
+      )
+  )
+}, server = FALSE)
+```
