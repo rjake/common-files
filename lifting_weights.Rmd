@@ -1,0 +1,233 @@
+---
+title: "Nutrition"
+author: "Jake Riley"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    source_code: embed
+    theme: lumen
+    vertical_layout: fill
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, 
+  warnings = FALSE,
+  message = FALSE, error = FALSE
+)
+```
+
+```{r workspace}
+library(tidyverse)
+library(lubridate)
+library(googlesheets)
+library(scales)
+```
+
+```{r WORKING_OUT}
+gs_lifting <-
+  gs_key(Sys.getenv("google_lifting"))
+```
+
+```{r}
+# get data from googlesheets
+lifting_data <-
+  gs_read(gs_lifting,
+    ws = "penn",
+    lookup = TRUE,
+    check.names = FALSE,
+    skip = 4
+  )
+```
+
+```{r}
+lifting_prep <-
+  lifting_data %>%
+  data.frame() %>%
+  select(which(colMeans(is.na(.)) < 0.1)) %>% 
+  gather(orig, value, -c(order:exercise)) %>% 
+  separate(
+    orig, 
+    into = c("metric", "date", "time"), 
+    sep = "_"
+  ) %>% 
+  mutate(
+    date = as.Date(as.integer(date), origin = "1899-12-30")
+  )
+
+
+lifting_final <-
+  lifting_prep %>% 
+  select(-time) %>% 
+  spread(metric, value) %>% 
+  filter(complete.cases(.), weight > 5) %>% 
+  mutate(moved = rep * weight)
+```
+
+
+```{r __plots}
+lifting_final %>% 
+  group_by(date) %>% 
+  summarise(y = sum(moved)) %>%
+  ungroup() %>% 
+  ggplot(aes(date, y)) +
+  geom_area() +
+  labs(title = "Total weight moved")
+
+plot_metric <- function(metric, fun = mean, title = "") {
+  metric <- enquo(metric)
+  
+  fun <- fun
+  
+  lifting_final %>% 
+    mutate(
+      var = !! metric,
+      exercise = fct_reorder(exercise, weight, max)
+    ) %>% 
+    group_by(date, exercise) %>% 
+    summarise(mean = fun(var)) %>%
+    ungroup() %>% 
+    ggplot(aes(date, mean, fill = exercise)) +
+    geom_area(aes(group = exercise)) +
+    facet_wrap(~exercise) +
+    scale_x_date(
+      date_labels = "%m/%d",
+      date_breaks = "4 days"
+    ) +
+    labs(
+      title = title,
+      x = "", y = ""
+    ) +
+    theme_gray(base_size = 14) +
+    theme(
+      #axis.text.x = element_text(size = 10),
+      legend.position = "none"
+    )
+}
+
+a <- plot_metric(weight, fun = mean, title = "mean weight lifted per rep")
+b <- plot_metric(moved, fun = sum, "total weight moved per session")
+
+gridExtra::grid.arrange(
+  a, b, nrow = 1
+)
+```
+
+```{r EATING}
+gs_eating <- 
+  gs_key(Sys.getenv("google_eating"))
+
+eating_raw <-
+  gs_read(
+    gs_eating,
+    ws = "raw",
+    lookup = TRUE,
+    check.names = FALSE
+  )
+
+string_meal <- "^(Meal .|Snacks .M)$"
+string_date <- "day.*, 201[89]$"
+
+eating_prep <- 
+  eating_raw %>% 
+  filter(!is.na(food)) %>% 
+  mutate(
+    date = 
+      ifelse(str_detect(food, string_date), food, NA) %>% 
+      mdy(),
+    meal = 
+      ifelse(
+        str_detect(food, string_meal) & is.na(calories),
+        food, 
+        NA
+      )
+  ) %>% 
+  fill(date, meal) %>% 
+  filter(
+    !str_detect(
+      food, 
+      paste0(c(string_date, string_meal, "Add Food Quick Tools"), collapse = "|")
+    )
+  ) %>% 
+  group_by(date, meal) %>% 
+  mutate(
+    unique = ifelse(str_detect(meal, "Snacks"), row_number(), 1)
+  ) %>% 
+  ungroup() %>% 
+  mutate(
+    unique = paste(meal, date, unique),
+    fat = as.numeric(fat),
+    sugar = as.numeric(sugar)
+  ) 
+  
+
+food_count <- 
+  eating_prep %>% 
+  count(food) %>% 
+  filter(n > 1)
+
+pct <- function(x) as.integer(round(x, 3) * 100)
+
+calorie_calc <- function(x) {
+  x_vars <- (names(x)[!str_detect(names(x), "meal|date|sodium|sugar|unique")])
+  
+  x %>%
+    group_by_at((x_vars)) %>% 
+    summarise(n = n()) %>% 
+    ungroup() %>%
+    mutate(
+      cc = carbs * 4,
+      cf = fat * 9,
+      cp = protein * 4,
+      calories = (cc + cf + cp),
+      pc = pct(cc / calories),
+      pf = pct(cf / calories),
+      pp = pct(cp / calories),
+      sweetspot = 
+        ifelse((pc > 45 & pf > 25 & pp > 15), "Yes", "No"),
+      category =
+        paste0(
+          ifelse(pc > 30, "C", ""),
+          ifelse(pf > 30, "F", ""),
+          ifelse(pp > 30, "P", "")
+        ),
+      ideal = 1-((abs(pc-50) + abs(pf - 30) + abs(pp - 20))/100)
+    ) %>%
+    filter(calories > 50) %>% 
+    select(n, everything()) %>%
+    rename(
+      `carbs (g)` = carbs,
+      `fat (g)` = fat,
+      `protein (g)` = protein,
+      `% carbs` = pc,
+      `% fat` = pf,
+      `% protein` = pp
+    ) %>% 
+    select(-c(cc, cp, cf)) %>% 
+    select(n, food, sweetspot, calories, category, everything())
+}
+
+as_item <-
+  calorie_calc(
+    eating_prep %>% select(-unique)
+  )
+
+as_meal <-
+calorie_calc(
+  #x <-
+  eating_prep %>%
+  group_by(unique) %>%
+  summarise(
+    food = paste0(food, collapse = "\n"),
+    carbs = sum(carbs),
+    protein = sum(protein),
+    fat = sum(fat)
+  ) %>%
+  ungroup() 
+) 
+
+viewxl::view_in_xl(as_item)
+viewxl::view_in_xl(as_meal)
+```
+
