@@ -2,9 +2,9 @@ library(tidyverse)
 
 q <- 
   "select 
-    x.this1, 
+    x.this1, --end comment
     x.this2, 
-    (x.this3, x.this3, and x.this3) as w, 
+    (x.this3, x.this3, and /*mid-code comment*/ x.this3) as w, 
     x.this4, 
     case when (1 + 2) then 1 else 0 end as z,
     y.*, 
@@ -16,6 +16,15 @@ q <-
 
 
 commands <- "select|from|where|group by|having|order by|limit"
+
+a <-
+  q %>% 
+  str_replace_all("\n", "\\\\n") %>% 
+  str_extract_all("(,?)(\\s?)[^\\s\\,]+") %>% 
+  unlist()
+
+a %>% 
+  str_replace_all(", \\\\n", "\\\\n,")
 
 df <-
   tibble(
