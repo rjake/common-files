@@ -2,6 +2,19 @@
 library(tidyverse)
 library(forcats)
 
+# tidyeval
+demo_fn <- function(df, group_name, column_name){
+  # library(rlang)
+  # df = mpg
+  # group_name = as_quosure(sym("class"))
+  # column_name = as_quosure(sym("hwy"))
+  
+  df %>%
+    group_by({{group_name}}) %>% 
+    summarise({{column_name}} := mean({{column_name}})) %>% 
+    ungroup()
+}
+
 # Data Wrangling
   head_tail <- 
       function(x, n){
