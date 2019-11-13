@@ -6,18 +6,20 @@
 # documentation and checks
 devtools::document(); beepr::beep(5);
 devtools::load_all(); beepr::beep(5);
+devtools::test(); beepr::beep(5);
+covr::report()
 pkgdown::build_site(lazy = TRUE); beepr::beep(5);
-#devtools::test(); beepr::beep(5);
-devtools::check(); beepr::beep(5);
+devtools::check(document = F, manual = F); beepr::beep(5);
+
 #devtools::build_vignettes()
 #updatePackageVersion()
-
 
 devtools::load_all()
 load_reactive_objects("inst/Rmd/flexdashboard_demo.Rmd")
 load_reactive_objects("inst/Rmd/test_dashboard.Rmd")
 load_reactive_objects("inst/Rmd/test_dashboard_missing_inputs.Rmd")
 load_reactive_objects("inst/rmd/test_dashboard_no_inputs.Rmd")
+load_reactive_objects("inst/rmd/test_dashboard_not_reactive.Rmd")
 load_reactive_objects("inst/shiny/app.R")
 load_reactive_objects("inst/shiny/server.R")
 load_reactive_objects("inst/shiny/ui.R")
@@ -89,18 +91,18 @@ lapply(files_to_lint$file, lintr::lint)
 # rename package
 library(magrittr)
 files_to_check <-
-  list.files(recursive = TRUE) %>% 
-  .[grep("^(?!docs|man|inst|LICENSE)", ., perl = T)] %>% 
+  list.files(recursive = TRUE) %>%
+  .[grep("^(?!docs|man|inst|LICENSE|images)", ., perl = T)] %>%
   c(., ".Rbuildignore")
 
 
 replace_text <- function(x, oldname, newname) {
   #i = 1; oldname = "shinyloadr"; newname = "shinysim"
   file <- x
-  
+
   file_text <- readr::read_lines(file)
-  
-  new_text <- 
+
+  new_text <-
     stringr::str_replace_all(file_text, oldname, newname)
 
   write(new_text, file)
@@ -109,7 +111,7 @@ replace_text <- function(x, oldname, newname) {
 for(i in seq_along(files_to_check)) {
   replace_text(
     files_to_check[i],
-    oldname = "shinyloadr",
-    newname = "shinysim"
+    oldname = "check_num_cat",
+    newname = "check_cut_numeric"
   )
 }
