@@ -131,6 +131,7 @@ string_date <- "day.*, 201[89]$"
 
 eating_prep <- 
   eating_raw %>% 
+  select(-order) %>% 
   filter(!is.na(food)) %>% 
   mutate(
     date = 
