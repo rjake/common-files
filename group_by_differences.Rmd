@@ -1,0 +1,90 @@
+---
+title: "Are the demographics of the two groups similar?"
+author: Jake Riley
+output: 
+  html_document:
+    df_print: kable
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+options(knitr.duplicate.label = 'allow')
+```
+
+### Prepare the data
+```{r}
+library(tidyverse)
+
+df <-
+  mpg %>%
+  filter(year == 1999 | cty > 15) %>% 
+  select(-c(displ, cty, hwy, model)) 
+
+```
+
+```{r, echo=FALSE}
+df %>% sample_n(10)
+```
+
+### Transform to long-form
+
+I transform the data into a long format. Each column is now stacked on top of each other in the `field` column with the original values in the `value` column.
+
+```{r}
+df_long <-
+  df %>% 
+  gather(field, value, -year) %>% 
+  mutate(value = fct_infreq(value) %>% fct_rev())
+```
+
+```{r, echo=FALSE}
+df_long %>% sample_n(10) %>% arrange(year)
+```
+
+### Visualize the differences
+
+```{r echo = FALSE}
+df_long %>% 
+  ggplot(aes(value, fill = field)) +
+  geom_bar() +
+  coord_flip() +
+  guides(fill = FALSE) +
+  facet_grid(
+    rows = vars(field), cols = vars(year), 
+    scales = "free", space = "free"
+  )
+```
+
+### Stats
+
+Using `group_by(field) %>% do(chisq.test(year ~ value))` to perform a chi-square test by year for differences in each field (column).
+```{r}
+#suppressWarnings(
+  chisq_res <-
+    df_long %>% 
+    group_by(field) %>% 
+    do(broom::tidy(chisq.test(.$year, .$value))) %>% 
+    ungroup() %>% 
+    arrange(p.value)
+#)
+```
+<br><br>
+The biggest variation in demographics is among the **`r first(chisq_res$field)`** field and the least variation is among the **`r last(chisq_res$field)`**.
+<br><br>
+```{r, echo=FALSE}
+chisq_res
+```
+
+```{r, echo=FALSE}
+knitr::knit_exit()
+```
+
+### Appendix
+```{r ref.label=knitr::all_labels(), eval=FALSE}
+# https://stackoverflow.com/a/35789929/4650934
+```
+
