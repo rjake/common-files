@@ -44,6 +44,7 @@ install.packages(
 		"tidyverse",
 		"tm",
 		#"TSP
+		"viewxl",
 		"zoo"
 	)
 )
