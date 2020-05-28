@@ -1,0 +1,235 @@
+---
+title: "Data Dictionary"
+#author: "Jake Riley"
+runtime: shiny 
+output: 
+ flexdashboard::flex_dashboard: 
+    orientation: rows 
+    vertical_layout: fill 
+    source_code: embed
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r input_demo, eval = FALSE}
+input <-
+  list(
+    col_name = "cyl disp",
+    table_name = "ars",
+    db_name = ".*",
+    search_type = "Table"
+  )
+
+table_search <- function() input$table_name
+col_search <- function() input$col_name
+```
+
+```{r workspace}
+library(tidyverse)
+library(shinyWidgets)
+library(flexdashboard)
+library(shiny)
+library(DT)
+library(glue)
+
+
+get_metadata <- function(pkg_df) {
+  # pkg_df <- "ggplot2::mpg"
+  
+  db <- str_split(pkg_df, "::")[[1]][1]
+  df <- str_split(pkg_df, "::")[[1]][2]
+  actual_df <- get(df)
+  
+  tibble(
+    database_name = db,
+    table_name = df,
+    field = names(actual_df),
+    seq_num = seq_along(actual_df),
+    data_class = sapply(actual_df, typeof)
+  )
+}
+
+raw_data <- 
+ c("ggplot2::mpg", "ggplot2::diamonds", "base::iris", "base::mtcars", "dplyr::starwars") %>% 
+  map_dfr(get_metadata) %>% 
+  mutate_if(is.character, toupper) %>% 
+  mutate_if(is.character, as.factor)
+```
+
+```{r functions}
+base_datatable <- function(df, ...) {
+  datatable(
+    df,
+    filter = "top",
+    rownames = FALSE,
+    escape = FALSE,
+    options =
+      list(
+        dom = "Brtip",
+        deferRender = FALSE,
+        scrollY = 540,
+        scroller = TRUE,
+        scrollX = TRUE,
+        fixedHeader = FALSE,
+        pageLength = nrow(df),
+        lengthChange = FALSE,
+        ...
+      )
+  )
+}
+
+extract_bold <- function(string, pattern) {
+  # string <- "AM - CYL - DISP"
+  # pattern <- input$col_name
+  
+  find_strings <- 
+    str_split(pattern, " ")[[1]] %>%
+    trimws() %>%
+    sort() %>%
+    paste0("[^ ]*", ., "[^ ]*") %>% 
+    paste(collapse = "|")
+  
+  bold_pattern <- 
+    str_replace_all(pattern, " ", "|") %>%
+    paste0("(", ., ")") %>% 
+    toupper()
+  
+   # str_extract_all(string, find_strings)[[1]] %>%
+  string %>% 
+     toupper() %>% 
+     str_replace_all(bold_pattern, "<strong>\\1</strong>")
+}
+```
+
+All Fields
+====================================
+Row {data-height=80}
+----------------------------
+```{r all_user_input}
+db_name <-
+  selectInput(
+    "db_name",
+    label = "Database:",
+    choices = c("All" = ".*", sort(as.character(unique(raw_data$database_name)))),
+    selected = ".*"
+  )
+
+table_name <-
+  textInput(
+    "table_name",
+    label = "Table(s): regex supported",
+    placeholder = "type table names"
+  )
+
+
+col_name <-
+  textInput(
+    "col_name",
+    label = "Column(s): fragments & spaces",
+    placeholder = "type column names",
+    value = "cyl"
+  )
+
+search_type <-
+  radioGroupButtons(
+    "search_type",
+    label = "One row per",
+    choices = c("Column", "Table"),
+    selected = "Column",
+    status = "primary"
+  )
+
+fluidRow(
+  column(2, db_name),
+  column(3, table_name),
+  column(5, col_name),
+  column(2, search_type)
+)
+```
+
+Row
+----------------------------
+```{r all_table}
+
+table_search <- debounce(reactive(input$table_name), 1000)
+col_search <- debounce(reactive(input$col_name), 2000)
+
+renderDT({
+  # if longer string is entered it needs to be split
+  if (col_search() == "") {
+    column_all <- ".*"
+    
+  } else {
+    column_all <- 
+      str_split(col_search(), " ")[[1]] %>%
+      trimws() %>%
+      sort()
+  }
+  
+  
+  # multi_col_entered <- length(column_all) > 1
+  column_search_selected <- input$search_type == "Column"
+  # use_column_view <- column_search_selected | multi_col_entered
+  
+  # if (multi_col_entered) {
+  #   updateRadioGroupButtons(session, "search_type", selected = "Table")
+  # }
+  # if (column_search_selected) {
+  #   updateRadioGroupButtons(session, "search_type", selected = "Column")
+  # }
+  
+  # print(use_column_view)
+  # print(input$search_type)
+  # print(column_all)
+  
+  # which dataset to use
+  if (column_search_selected) {
+    base_data <- raw_data
+    column_search <- paste(toupper(column_all), collapse = "|")
+    
+  } else {  
+    base_data <- 
+      raw_data %>%
+      group_by_at(vars(database_name:table_name)) %>%
+      summarise(field = paste(sort(field), collapse = " • ")) %>%
+      ungroup()
+    
+    column_search <- paste(toupper(column_all), collapse = ".*")
+  }
+  
+  
+  df <- 
+    base_data %>% 
+    filter(
+      str_detect(database_name, input$db_name),
+      str_detect(table_name, toupper(table_search())),
+      str_detect(field, column_search)
+    )
+  
+  
+  # final manipulation
+  if (column_search_selected) {
+    base_datatable(df)
+    
+  } else {
+    # bold text if column search != ".*"
+    if(column_all != ".*") {
+      final_df <- mutate(df, field = map_chr(field, extract_bold, col_search()))
+    }
+    
+    base_datatable(
+      final_df,
+      autoWidth = TRUE,
+      columnDefs = list(
+        list(targets = c(0), visible = TRUE, width = "10%"),
+        list(targets = c(1), visible = TRUE, width = "10%"),
+        list(targets = c(2), visible = TRUE, width = "80%")
+      )
+    )
+  }
+  
+}, server = TRUE)
+
+```
