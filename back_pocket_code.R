@@ -14,6 +14,8 @@ demo_fn <- function(df, group_name, column_name){
     summarise({{column_name}} := mean({{column_name}})) %>% 
     ungroup()
 }
+demo_fn(mpg, hwy)
+demo_fn(mpg, !!sym("hwy"))
 
 # Data Wrangling
   head_tail <- 
