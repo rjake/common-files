@@ -15,13 +15,12 @@ options(
 
 
 # remove items from global env with regex
-.rm_ls <- function(regex, negate = FALSE) {
+.keep_ls <- function(regex, negate = FALSE) {
   # x <- 1;x2 <- 2; y <- 1;regex <- "^[xy]"; negate <- FALSE
   obj_list <- ls(envir = globalenv())
-  to_remove <- obj_list[stringr::str_detect(obj_list, regex, negate = negate)]
+  to_remove <- obj_list[!stringr::str_detect(obj_list, regex, negate = negate)]
   rm(list = to_remove, envir = globalenv())
 }
-# .rm_ls("^[xy]")
 
 
 # generate Rmd or flexdb
@@ -64,6 +63,23 @@ options(
       id = context$id
     )
   }
+}
+
+
+# reprex
+.reprex_ticks <- function() {
+  reprex::reprex_selection(venue = "gh")
+}
+
+
+.reprex_code <- function() {
+  reprex::reprex_selection(venue = "r")
+}
+
+
+# print
+.print <- function(x) {
+  print(x, n = Inf)
 }
 
 
