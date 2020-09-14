@@ -1,9 +1,9 @@
 # options ----
 options(
-    repos = c(CRAN = "https://cran.rstudio.com/"),
-    scipen = 999,
-    digits = 3,
-    warnPartialMatchArgs = TRUE
+  repos = c(CRAN = "https://cran.rstudio.com/"),
+  scipen = 999,
+  digits = 3,
+  warnPartialMatchArgs = TRUE
 )
 
 
@@ -12,7 +12,6 @@ options(
 .rprof <- function(variables) {
   usethis::edit_r_profile()
 }
-
 
 # remove items from global env with regex
 .keep_ls <- function(regex, negate = FALSE) {
@@ -26,11 +25,11 @@ options(
 # generate Rmd or flexdb
 .generate_file_from_template <- function(name, template, pkg) {
   file <- ifelse(grepl("\\.[Rr]md$", name), name, paste0(name, ".Rmd"))
-  
+
   try( # throws a weird error from slash in css in yaml
     rmarkdown::draft(file, template = template, package = pkg)
   )
-  
+
   file.edit(file)
 }
 
@@ -40,10 +39,9 @@ options(
 }
 
 
-.new_dashboard <- function(name, 
-                          template = "flex_dashboard", 
-                          pkg = "flexdashboard"
-                          ) {
+.new_dashboard <- function(name,
+                           template = "flex_dashboard",
+                           pkg = "flexdashboard") {
   rmarkdown::draft(name, template = template, package = pkg)
 }
 
@@ -82,16 +80,26 @@ options(
   print(x, n = Inf)
 }
 
+# package dev
+.devload <- function() {
+  devtools::document()
+  devtools::load_all()
+}
+
+# package helpers
+.pkg_helpers <- function() {
+  rstudioapi::navigateToFile("~/GitHub/CommonFiles/package_helpers.R")
+}
 
 # list all files
 .all_functions <- function() {
   # list all invisible fns
-  r_profile <- parse("~/.Rprofile")  
-  fn_code <- as.character(r_profile[grep("^\\.", r_profile)])
+  all_fn <- head(parse("~/.Rprofile"), -1)
+  fn_code <- as.character(all_fn[grep("^\\.", all_fn)])
   # remove everything before the '{' then slide fn name over (rm assignment)
   new_fn <-
     stringr::str_remove(
-      stringr::str_extract(fn_code, "^[^\\{]*"), 
+      stringr::str_extract(fn_code, "^[^\\{]*"),
       " <- function"
     )
   # tell me about it
