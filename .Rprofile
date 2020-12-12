@@ -13,6 +13,10 @@ options(
   usethis::edit_r_profile()
 }
 
+.beep <- function() {
+  beepr::beep(5)
+}
+
 # remove items from global env with regex
 .keep_ls <- function(regex, negate = FALSE) {
   # x <- 1;x2 <- 2; y <- 1;regex <- "^[xy]"; negate <- FALSE
