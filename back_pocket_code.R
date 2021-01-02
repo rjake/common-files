@@ -221,3 +221,15 @@ devtools::session_info()$packages$package
         xlab("") +
         theme(strip.text.y = element_text(angle = 0), 
               panel.grid = element_blank(), panel.spacing = unit(.05, "lines"))
+
+
+# fibonacci seq
+fib <- function(n) {
+  out <- 0:1
+  while(length(out) < n) {
+    out <- c(out, sum(tail(out, 2)))
+  }
+  out#[1:n]
+}
+
+tail(fib(30), 1)
