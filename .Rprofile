@@ -18,7 +18,7 @@ options(
 }
 
 # remove items from global env with regex
-.keep_ls <- function(regex, negate = FALSE) {
+.ls_keep <- function(regex, negate = FALSE) {
   # x <- 1;x2 <- 2; y <- 1;regex <- "^[xy]"; negate <- FALSE
   obj_list <- ls(envir = globalenv())
   to_remove <- obj_list[!stringr::str_detect(obj_list, regex, negate = negate)]
@@ -51,20 +51,31 @@ options(
 
 
 # set working directory to file location
-# option to print to console vs add to source editor
-.set_here <- function(console = FALSE) {
+# option to print to console vs add to source editor# set working directory to file location
+.set_here <- function() {
+  location <- rstudioapi::getActiveDocumentContext()$id
+  is_console <- (location  == "#console")
+
   context <- rstudioapi::getSourceEditorContext()
   wd <- paste0('setwd("', dirname(context$path), '")')
-  if (console) {
-    cat(wd)
+
+  if (is_console) {
+    rstudioapi::sendToConsole(
+      code = wd,
+      execute = TRUE
+    )
   } else {
-    context
     rstudioapi::modifyRange(
-      context$selection[[1]]$range,
-      wd,
+      location = context$selection[[1]]$range,
+      text = wd,
       id = context$id
     )
   }
+}
+
+# open file
+.open_files <- function(...) {
+  file.edit(...)
 }
 
 
