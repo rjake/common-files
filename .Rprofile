@@ -73,6 +73,20 @@ options(
   }
 }
 
+# args to environment
+.fn_to_env <- function(fn = NULL) {
+  context <- rstudioapi::getSourceEditorContext()
+
+  new_code <-
+    context$selection[[1]]$text |>
+    str_replace("(\\w+)(.*)", "list\\2 |> list2env(envir = globalenv())")
+
+  rstudioapi::sendToConsole(
+    code = new_code,
+    execute = TRUE
+  )
+}
+
 # open file
 .open_files <- function(...) {
   file.edit(...)
