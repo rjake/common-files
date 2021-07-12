@@ -115,3 +115,31 @@ for(i in seq_along(files_to_check)) {
     newname = "check_cut_numeric"
   )
 }
+
+
+package_to_analyze <- "rocqi"
+
+
+mvbutils::foodweb(
+  where = asNamespace(package_to_analyze),
+  #  descendents = FALSE,
+  #  ancestors = FALSE,
+  cex = 0.8,
+  prune = "chop_colors",
+  #  boxcolor = "grey90",
+  color.lines = TRUE
+)
+
+# package network
+library(package_to_analyze, character.only = TRUE)
+
+# get only exported function using the loaded package env name
+exported_funs <- 
+  unclass(lsf.str(paste0("package:", package_to_analyze), all.names = TRUE))
+
+# get all functions inside the package using asNamespace
+all_funs <- 
+  unclass(lsf.str(envir = asNamespace(package_to_analyze), all.names = TRUE))
+
+# get only non exported funs
+setdiff(all_funs, exported_funs)
