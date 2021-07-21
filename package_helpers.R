@@ -1,63 +1,26 @@
-.rs.restartR(); rm(list = ls());
-#library(devtools)
-#library(pkgdown)
-#library(beepr)
-
-# documentation and checks
-devtools::document(); beepr::beep(5);
-devtools::load_all(); beepr::beep(5);
-devtools::test(); beepr::beep(5);
-covr::report()
-pkgdown::build_site(lazy = TRUE); beepr::beep(5);
-devtools::check(document = F, manual = F); beepr::beep(5);
-
-#devtools::build_vignettes()
-#updatePackageVersion()
-
+# for each PR ----
+# restart R
+rm(list = ls());.rs.restartR();
+# Update documentation (NAMESPACE) for functions
+devtools::document()
+# Load functions
 devtools::load_all()
-load_reactive_objects("inst/Rmd/flexdashboard_demo.Rmd")
-load_reactive_objects("inst/Rmd/test_dashboard.Rmd")
-load_reactive_objects("inst/Rmd/test_dashboard_missing_inputs.Rmd")
-load_reactive_objects("inst/rmd/test_dashboard_no_inputs.Rmd")
-load_reactive_objects("inst/rmd/test_dashboard_not_reactive.Rmd")
-load_reactive_objects("inst/shiny/app.R")
-load_reactive_objects("inst/shiny/server.R")
-load_reactive_objects("inst/shiny/ui.R")
+# Run tests first without package style
+devtools::test(filter = "package-style|summary", invert = TRUE)
+# with package-style (slow)
+devtools::test(filter = "package-style|summary"); beepr::beep(5);
+# check test coverage
+covr::report()
+# rebuild site
+pkgdown::build_site(devel = TRUE, lazy = TRUE)
+# Check if there are any package issues
+devtools::check(document = FALSE); beepr::beep(5);
 
-devtools::install_github("rjake/shinysim")
+# other pkgdown functions commonly used
+pkgdown::build_reference()
+pkgdown::build_article(name = "")
+pkgdown::build_articles()
 
-
-# GETTING STARTED ----
-usethis::create_package(getwd())
-usethis::use_pipe()
-
-devtools::install_github("r-lib/devtools")
-#3devtools::install_github("r-lib/usethis")
-# install.packages("covr")
-# install.packages("spelling")
-
-library(devtools)
-library(roxygen2)
-library(usethis)
-has_devel()
-use_r()
-use_testthat()
-use_spell_check()
-use_data_raw()
-use_package_doc()
-use_roxygen_md()
-
-use_travis()
-#use_appveyor()
-use_coverage(type = c("codecov"))
-
-# errors:
-
-use_news_md()
-
-
-# add tests
-use_test("show_colors")
 
 
 # updating release ----
@@ -69,77 +32,33 @@ devtools::install(); pkgdown::build_site()
 file.edit("DESCRIPTION")
 # Double check _pkgdown.yml for new functions
 file.edit("_pkgdown.yml")
-# Check test coverage: Make sure it's 100%
-covr::package_coverage(type = "tests")
 # Update NEWS.md: Follow format from previous releases
 file.edit("NEWS.md")
 # Run package spell check:
 spelling::spell_check_package()
 # may need to add/edit words
 file.edit("inst/WORDLIST")
-# Lint package:
-#library(magrittr)
-files_to_lint <-
-  tibble::tibble(
-    file = list.files(pattern = "\\.R$", recursive = TRUE),
-    edit = file.info(file)$mtime
-  ) magrittr::`%>%`
-dplyr::filter(edit > "2019-08-03")
 
-lapply(files_to_lint$file, lintr::lint)
-
-# rename package
-library(magrittr)
-files_to_check <-
-  list.files(recursive = TRUE) %>%
-  .[grep("^(?!docs|man|inst|LICENSE|images)", ., perl = T)] %>%
-  c(., ".Rbuildignore")
+# send to CRAN
 
 
-replace_text <- function(x, oldname, newname) {
-  #i = 1; oldname = "shinyloadr"; newname = "shinysim"
-  file <- x
-
-  file_text <- readr::read_lines(file)
-
-  new_text <-
-    stringr::str_replace_all(file_text, oldname, newname)
-
-  write(new_text, file)
-}
-
-for(i in seq_along(files_to_check)) {
-  replace_text(
-    files_to_check[i],
-    oldname = "check_num_cat",
-    newname = "check_cut_numeric"
-  )
-}
 
 
-package_to_analyze <- "rocqi"
+# fn web ----
+package_to_analyze <- "simplecolors"
+library(package_to_analyze, character.only = TRUE)
 
+tibble::tibble(
+  fn = unclass(lsf.str(envir = asNamespace(package_to_analyze), all.names = TRUE)),
+  exported = fn %in% unclass(lsf.str(paste0("package:", package_to_analyze), all.names = TRUE))
+)
 
 mvbutils::foodweb(
   where = asNamespace(package_to_analyze),
-  #  descendents = FALSE,
-  #  ancestors = FALSE,
+  # descendents = FALSE,
+  # ancestors = FALSE,
   cex = 0.8,
-  prune = "chop_colors",
-  #  boxcolor = "grey90",
+  # prune = "sc_within", # specific function of interest
+  # boxcolor = "grey90",
   color.lines = TRUE
 )
-
-# package network
-library(package_to_analyze, character.only = TRUE)
-
-# get only exported function using the loaded package env name
-exported_funs <- 
-  unclass(lsf.str(paste0("package:", package_to_analyze), all.names = TRUE))
-
-# get all functions inside the package using asNamespace
-all_funs <- 
-  unclass(lsf.str(envir = asNamespace(package_to_analyze), all.names = TRUE))
-
-# get only non exported funs
-setdiff(all_funs, exported_funs)
