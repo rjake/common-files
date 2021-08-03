@@ -39,8 +39,17 @@ spelling::spell_check_package()
 # may need to add/edit words
 file.edit("inst/WORDLIST")
 
-# send to CRAN
 
+
+# send to CRAN ----
+# additional checks
+devtools::check_rhub() # rhub::validate_email(email = "rjake@sas.upenn.edu")
+devtools::check_win_devel()
+devtools::check_win_release()
+# add comments for CRAN
+rstudioapi::navigateToFile("cran-comments.md", line = 12)
+# release to CRAN, will need to confirm an email when done
+devtools::release()
 
 
 
