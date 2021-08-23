@@ -233,3 +233,27 @@ fib <- function(n) {
 }
 
 tail(fib(30), 1)
+
+# beta (skewed) distribution app
+library(shiny)
+library(ggplot2)
+shinyApp(
+  ui = fluidPage(
+    sidebarLayout(
+      sidebarPanel = 
+        sidebarPanel(
+          numericInput("s1", "shape1", 100),
+          numericInput("s2", "shape2", 100)
+        ),
+      mainPanel = mainPanel(plotOutput("plot"))
+    )
+  ),
+  server = function(input, output, session) {
+    output$plot <- renderPlot({
+      tibble(x = rbeta(2000, input$s1, input$s2)) |> 
+        ggplot(aes(x)) +
+        geom_histogram(color = "white") +
+        xlim(0, 1)
+    })
+  }
+)
