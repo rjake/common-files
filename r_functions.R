@@ -38,10 +38,15 @@
 #' run .fn_to_env() in console
 .fn_to_env <- function(fn = NULL) {
   context <- rstudioapi::getSourceEditorContext()
+  old_code <- context$selection[[1]]$text
 
   new_code <-
-    context$selection[[1]]$text |>
-    stringr::str_replace("[^\\(]+(.*)", "list\\1 |> list2env(envir = globalenv())")
+    old_code |>
+    stringr::str_replace(
+      "(^[a-zA-Z\\._\\d]+)",
+      "list"
+    ) |>
+    paste(" |> list2env(envir = globalenv())")
 
   rstudioapi::sendToConsole(
     code = new_code,
