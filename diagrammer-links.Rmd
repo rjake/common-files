@@ -71,6 +71,7 @@ highlight_node(main_diagram, "Step 2")
 ```
 
 # Reduce Pipe {#reduce_pipe}
+Several steps come from [June Choe](https://yjunechoe.github.io/posts/2020-12-13-collapse-repetitive-piping-with-reduce/#a-reduce-solution)
 ```{r}
 highlight_node(main_diagram, "Reduce Pipe")
 
