@@ -1,0 +1,114 @@
+---
+title: "Untitled"
+output: 
+  html_document:
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  message = FALSE, 
+  warning = FALSE
+)
+```
+
+
+```{r}
+library(DiagrammeR)
+library(tidyverse)
+
+my_node <- function(graph, x, ...) {
+  link <- 
+    paste0("#", x) |> 
+    tolower() |> 
+    str_replace_all(" ", "_")
+  
+  graph |> 
+    add_node(
+      label = x,
+      node_aes = node_aes(
+        ...,
+        shape = "polygon",
+        penwidth = 0,
+        color = "black",
+        fixedsize = FALSE,
+        URL = link,
+      )
+    )
+}
+
+highlight_node <- function(graph, node) {
+  graph |> 
+    select_nodes(conditions = (label == node)) |> 
+    set_node_attrs_ws(penwidth, 1) |> 
+    render_graph()
+}
+
+main_diagram <- 
+  create_graph(attr_theme = "lr") |> 
+  my_node("Step 1") |>
+  my_node("Step 2") |>
+  my_node("Reduce Pipe") |>
+  add_edge(from = "Step 1", to = "Step 2") |> 
+  add_edge(from = "Step 1", to = "Reduce Pipe")
+
+
+render_graph(main_diagram)
+```
+
+
+# Step 1 {#step_1}
+Here is some info about step 1
+```{r}
+highlight_node(main_diagram, "Step 1")
+```
+
+
+# Step 2 {#step_2}
+Here is some info about step 2
+```{r}
+highlight_node(main_diagram, "Step 2")
+```
+
+# Reduce Pipe {#reduce_pipe}
+```{r}
+highlight_node(main_diagram, "Reduce Pipe")
+
+all_nodes <- 
+  reduce(
+    .init = create_graph(),
+    .x = LETTERS[1:4],
+    .f = ~ add_node(.x, label = .y) # same as ~.x |> add_node(label = .y)
+  ) 
+
+render_graph(all_nodes)
+
+edge_list <- 
+  c(
+    "A" = "B",
+    "A" = "C",
+    "B" = "C",
+    "C" = "D"
+  )
+
+# works
+reduce2(
+  .init = all_nodes,
+  .x = names(edge_list),
+  .y = unname(edge_list),
+  .f = ~ add_edge(..1, from = ..2, to = ..3)
+) |> 
+  render_graph()
+```
+
+```{r, eval=FALSE}
+# doesn't work
+reduce(
+  .x = edge_list,
+  .f = 
+    ~..1  |> 
+    add_edge(from = names(..2), to = ..2),
+  .init = all_nodes
+)
+```
+
