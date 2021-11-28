@@ -1,0 +1,46 @@
+---
+title: "iframe"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+```
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Chart A
+https://stackoverflow.com/questions/33020558/embed-iframe-inside-shiny-app
+
+
+<iframe 
+  width="560" 
+  height="315" 
+  src="https://docs.google.com/spreadsheets/d/e/2PACX-1vR5LE-707cmd-vu_ZeMTRiiEv_3fiZ1qy7mF8X49On3viRL9ZpnDjAfdOk61ON75CYIHMWOTFbJOJFH/pubhtml?widget=true&amp;headers=false" 
+  frameborder="0" 
+  allowfullscreen
+  >
+</iframe>
+
+
+
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Chart B
+
+```{r}
+
+```
+
+### Chart C
+
+```{r}
+
+```
+

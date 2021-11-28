@@ -1,6 +1,9 @@
 library(tidyverse)
 library(ggrepel)
 library(nycflights13)
+library(data.table)
+
+options(scipen = 999)
 
 slope <-
     function(y2, y1, x2, x1){
@@ -11,6 +14,23 @@ slope <-
 distance <-
     function(x2, x1, y2, y1){
         sqrt((x2 - x1)^2 + (y2 - y1)^2)
+    }
+
+round_down <-
+    function (x, accuracy, integer = F) {
+        x_sign <- sign(x)
+        x_int <- abs(as.integer(x))
+        x_dec <- abs(x) - x_int
+
+        if (integer == F) {
+            get_round <-(x_dec%/%accuracy) * accuracy
+            final <- (x_int + get_round) * x_sign
+        } else {
+            get_round <-(x_int%/%accuracy) * accuracy
+            final <- (get_round) * x_sign
+        }
+        
+        return(final)
     }
 
 #relative difference: takes value into account 
@@ -25,7 +45,7 @@ rel_diff <-
 
 
 
-#df <- msleep; set_dv <- "sleep_total > 12"; set_ignore <- c('name', 'genus');
+df <- msleep; set_dv <- "sleep_total > 12"; set_ignore <- c('name', 'genus');
 #df <- mpg; set_dv <- "ntile(cty, 4) > 3"; set_ignore <- "cty";
 #df <- iris; set_dv <- "Species != 'versicolor'"; set_ignore <- "Species";
 #df <- mtcars; set_dv <- "vs == 1"; set_ignore <- "vs";
@@ -34,9 +54,13 @@ rel_diff <-
 #df <- read.csv("../../../Desktop/kaggle/No-show-Issue-Comma-300k.csv", stringsAsFactors = F);set_dv <- "Status == 'No-Show'";set_ignore <- c("Status", "AppointmentRegistration", "ApointmentData")
 #df <- read.csv("../../../Desktop/kaggle/code4philly_cognoma.csv", stringsAsFactors = F);set_dv <- "dead == 1";set_ignore <- c("dead", "acronym", "organ_of_origin", "days_survived")
 #df <- read.csv("../../../Desktop/kaggle/HR_comma_sep.csv", stringsAsFactors = F);set_dv <- "left == 1";set_ignore <- c("left")
+#df <- read.csv("J:/data scanner/COGNOMA/samples.csv", stringsAsFactors = F) %>% filter(complete.cases(.));set_dv <- "dead == 0";set_ignore <- c("dead")
 
+#df <- fread("https://raw.githubusercontent.com/Microsoft/r-server-hospital-length-of-stay/master/Data/LengthOfStay.csv", stringsAsFactors = F);set_dv <- "lengthofstay > fivenum(df$lengthofstay)[3]";set_ignore <- c("lengthofstay")
+
+set.seed(1234)
 base_data <-
-    df %>% 
+    df %>% sample_frac(0.1) %>% 
     mutate_(var = set_dv) %>% 
     filter(!is.na(var)) %>% 
     select(-one_of(set_ignore)) %>%
@@ -106,8 +130,8 @@ get_values <-
            d_x_sqv = d_value * sqrt(v_field),
            slope_value = slope(v_field, 0, d_value, 0),
            dist_value = distance(d_value, 0, v_field, 0)*sign(d_value),
-           s_x_d = slope_value * d_value) #%>% filter(abs_d_value >= 1)
-
+           s_x_d = slope_value * d_value) %>% #filter(abs_d_value >= 1)
+    mutate(field = fct_reorder(field, d_value, .fun = max, .desc = T))
 
 compare_values <-
     df_test %>% 
@@ -164,24 +188,36 @@ final_estimate %>%
     summarise_at(vars(contains("_correct")), funs(mean(.)*100)) %>% 
     t()
 
-ggplot(final_estimate) + geom_count(aes(var, mean_diff, color = mdiff_correct))
+final_estimate %>% 
+    group_by(var, side_mdiff) %>% 
+    summarise(n = n()) %>% 
+    ungroup() %>% 
+    mutate(pct = n/sum(n) %>% round(3)*100) %>% 
+    select(-n) %>% 
+    spread(var, pct)
+    
+
+ggplot(final_estimate) + 
+    geom_jitter(aes(var, mean_diff, color = mdiff_correct), alpha = .4, width = .1) +
+    theme_minimal()
 
 
-get_id <- 1159 #max(id)
+get_id <- 1 #max(id)
 
 one_obs_profile <- 
     compare_values %>% 
     filter(id == get_id) %>% 
-    mutate(est_x = min(d_value) + (max(d_value)-min(d_value))/2, #
-               #mean(d_value),
-           est_y = min(v_field) + (max(v_field)-min(v_field))/2) #
-               #mean(v_field))
+    mutate(est_x = #min(d_value) + (max(d_value)-min(d_value))/2, #
+               median(d_value),
+           est_y = #min(v_field) + (max(v_field)-min(v_field))/2) #
+               mean(v_field))
     #left_join(one_obs_est %>% select(id, ))
 
-ggplot(get_values, aes(x = d_value, y = v_field, color = reorder(field, -v_field))) +
-    geom_vline(xintercept = 0, color = "grey50", size = 4, alpha = .5) +
+
+ggplot(get_values, aes(x = p_value, y = v_field, color = reorder(field, -v_field, FUN = max))) +
+    geom_vline(xintercept = mean(base_data$var), color = "grey50", size = 4, alpha = .5) +
     geom_line(aes(group = field), color = "grey60", alpha = .2) +
-    geom_segment(aes(xend = 0, yend = 0), alpha = .2) +
+    #geom_segment(aes(xend = 0, yend = 0), alpha = .2) +
     geom_point(aes(size = n), alpha = .9) +
     geom_segment(data = one_obs_profile, 
                  aes(xend = est_x, yend = est_y), 
@@ -194,7 +230,7 @@ ggplot(get_values, aes(x = d_value, y = v_field, color = reorder(field, -v_field
     geom_text(data = one_obs_profile, aes(est_x, est_y), label = "?", color = "white", size = 4) +
     theme(panel.background = element_rect(fill = "white")) +
     guides(size = F) +
-    labs(x = paste0("group distance from pop proportion (", floor(var_freq), "%)"),
+    labs(x = paste0("group distance from pop avg (", floor(var_freq), ")"),
          y = "variance of x",
          color = "variable")
 
@@ -207,17 +243,19 @@ ggplot(compare_values %>% filter(id == get_id),
     #xlim(-1,101) + 
     #ylim(0,1) +
     theme(legend.position = "none") +
-    labs(x = paste0("group distance from pop proportion (", floor(var_freq), "%)"),
+    labs(x = paste0("group distance from pop proportion (", floor(var_freq), ")"),
          y = "variance of x",
          color = "variable")
 
-ggplot(get_values, aes(p_value, field)) +
+ggplot(get_values, aes(d_value, field, color = field)) +
     geom_vline(xintercept = var_freq) +
-    geom_line(aes(color = field), size = 6, alpha = 0.2) +
+    geom_line(size = 6, alpha = 0.2) +
     geom_point(aes(size = n)) +
-    xlim(-1,101) + 
+    geom_point(data = one_obs_profile, aes(size = n), color = "black") +
+    #xlim(-1,101) + 
     theme(legend.position = "none",
-          panel.background = element_rect(fill = "white"))
+          panel.background = element_rect(fill = "white")) +
+    labs(x = "Avg")
 
 ggplot(get_values, 
        aes(n, p_value, label = value, color = value)) +
@@ -231,10 +269,60 @@ ggplot(get_values,
          subtitle = "The size of the point represents the # of obs.\nContinuous variables are shown as deciles, 1-10")
 
 
-fdata %>% rowwise() %>% 
-    # insert list column of single row of sdata based on conditions
-    mutate(s = list(sdata %>% filter(fyear >= byear, fyear < eyear))) %>% 
-    # unnest list column
-    tidyr::unnest()
 
+all_obs <-
+    compare_values %>% 
+    #filter(id == 1) %>% 
+    select(id, field, d_value, v_field, n) %>% 
+    mutate(x_n = d_value * n) %>% 
+    group_by(id) %>%
+    mutate(est_x = mean(d_value)) %>% #min(d_value) + (max(d_value)-min(d_value))/2) %>% 
+    #arrange(desc(sign(est_x) * d_value)) %>% slice(1:2) %>% 
+    mutate(side_same = ifelse(d_value > mean(base_data$var),#sign(est_x) == sign(d_value), 
+                              v_field, NA),
+           side_diff = ifelse(is.na(side_same), v_field, NA)) %>% 
+    summarise(est_x = min(est_x),# %>% round_down(0.01),
+              sum_same = sum(side_same, na.rm = T),
+              sum_diff = sum(side_diff, na.rm = T),
+              #est_y = sum(n, na.rm = T) #%>% round_down(2000, T)
+              #est_y = mean(n, na.rm = T) #%>% round_down(2000, T)
+              #est_y = sum(x_n, na.rm = T) #%>% round_down(2000, T)
+              #est_y = mean(sum_same, na.rm = T) %>% round_down(2000, T)
+              est_y = mean(sum_same, sum_diff, na.rm = T) %>% round_down(2000, T)
+              ) %>% 
+    ungroup()
+
+hist(all_obs$est_y, breaks = 100)
+hist(all_obs$est_x, breaks = 100)
+
+ggplot() +
+    theme(panel.background = element_rect(fill = "white")) +
+    #geom_point(data = get_values, aes(x = d_value, y = v_field, color = reorder(field, -v_field), size = n)) +
+    #geom_line(data = get_values, aes(x = d_value, y = n, color = reorder(field, -n))) +
+    #geom_vline(xintercept = 0, color = "grey50", size = 4, alpha = .5) +
+    geom_point(data = all_obs, aes(est_x, est_y), color = "black", alpha = 0.2) +
+    labs(x = paste0("group distance from pop avg (", floor(var_freq), ")"),
+         y = "",
+         #color = "variable",
+         title = "mean of outline (max, min of Y on each side) in each group")
+    
+
+
+
+
+{
+    dat <- all_obs %>% select(d_value, v_field)
+    ch <- 
+        chull(dat)
+    
+    coords <- dat[c(ch, ch[1]), ]  # closed polygon
+    
+    plot(dat, pch=19)
+    lines(coords, col="red")
+    
+    sf::
+        
+        plot(mean(coords$d_value), mean(coords$v_field), pch=20)
+    
+    }
 
