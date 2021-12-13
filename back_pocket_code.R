@@ -57,6 +57,35 @@ collapse_name(test_names) # snake_case
 collapse_name(test_names, sep = ".") # orig.r.names
 collapse_name(test_names, preserve_case = T, sep = "") # CamelCase
 
+#' @examples 
+#' replace_hyphens(x = "S12.0-S12.6, S12.8-S12.9", tail = 1)
+#' replace_hyphens(x = "H02.101-H02.103, H03.109", tail = 1)
+replace_hyphens <- function(x, tail) {
+  pattern <- "[\\w+|\\.]+"
+  
+  code_extract <- 
+    str_extract_all(x, paste0(pattern, "-", pattern)) |> 
+    flatten_chr()
+  
+  code_pairs <- str_extract_all(code_extract, pattern)
+  
+  start <- map(code_pairs, str_sub, 1, -(tail + 1)) # n from end
+  end <- 
+    map(code_pairs, str_sub, -tail) |> 
+    map(as.integer)
+  
+  replace_with <- 
+    set_names(
+      x = map2_chr(start, end, ~paste0(.x, .y[1]:.y[2], collapse = ", ")),
+      nm = code_extract
+    )
+
+  str_replace_all(
+    x, 
+    replace_with
+  )
+}
+
 # rescale data
     change_range <- 
         function(x, new_min, new_max){
