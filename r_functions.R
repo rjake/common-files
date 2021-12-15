@@ -38,14 +38,14 @@
 #' run .fn_to_env() in console
 .fn_to_env <- function(fn = NULL) {
   context <- rstudioapi::getSourceEditorContext()
-  old_code <- context$selection[[1]]$text
-
+  old_code <- parse(text = context$selection[[1]]$text)
+  
+  # update primary function to list
+  old_code[[1]][[1]] <- as.symbol("list")
+  
   new_code <-
-    old_code |>
-    stringr::str_replace(
-      "(^[a-zA-Z\\._\\d]+)",
-      "list"
-    ) |>
+    old_code |> 
+    as.character() |> 
     paste(" |> list2env(envir = globalenv())")
 
   rstudioapi::sendToConsole(
