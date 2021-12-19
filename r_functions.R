@@ -98,6 +98,40 @@
   beepr::beep(5)
 }
 
+.alerts <- function(activate = TRUE) {
+  alert_active <- ("beep" %in% getTaskCallbackNames())
+  
+  if (activate & alert_active) {
+    return(message("alerts: already on"))
+  }
+  
+  # activate if not on
+  if (activate & !alert_active) {
+    options(error = function() beepr::beep(9))
+    
+    addTaskCallback(
+     function(expr, value, ok, visible) {
+       beepr::beep(5)
+       TRUE
+     },
+     name = "beep"
+    )
+    return(message("alerts: on"))
+  }
+  
+  # deactivate if on
+  if (!activate & alert_active) {
+    while ("beep" %in% getTaskCallbackNames()) {
+      removeTaskCallback("beep")
+    }
+    return(
+      message(
+        "alerts: off\n",
+        "To reset options(error): Debug > On Error > Error Inspector"
+      )
+    )
+  }
+}
 
 # show list at start ----
 #' prints list of functions in this file
