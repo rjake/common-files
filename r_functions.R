@@ -77,7 +77,7 @@
 # package development ----
 #' opens package helpers
 .pkg_helpers <- function() {
-  file.edit("~/github/package_helpers.r")
+  file.edit("~/GitHub/common-files/package_helpers.R")
 }
 
 #' runs these two functions together
@@ -133,10 +133,11 @@
   }
 }
 
+
 # show list at start ----
 #' prints list of functions in this file
 .custom_functions <- function() {
-  r_profile <- parse("~/r_functions.R")
+  r_profile <- parse("~/GitHub/common-files/r_functions.R")
   fn_code <- as.character(r_profile[grep("^\\.", r_profile)])
   new_fn <- stringr::str_remove(
     stringr::str_extract(fn_code, "^[^\\{]*"),
