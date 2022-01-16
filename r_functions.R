@@ -39,13 +39,13 @@
 .fn_to_env <- function(fn = NULL) {
   context <- rstudioapi::getSourceEditorContext()
   old_code <- parse(text = context$selection[[1]]$text)
-  
+
   # update primary function to list
   old_code[[1]][[1]] <- as.symbol("list")
-  
+
   new_code <-
-    old_code |> 
-    as.character() |> 
+    old_code |>
+    as.character() |>
     paste(" |> list2env(envir = globalenv())")
 
   rstudioapi::sendToConsole(
@@ -77,7 +77,7 @@
 # package development ----
 #' opens package helpers
 .pkg_helpers <- function() {
-  file.edit("~/GitHub/common-files/package_helpers.R")
+  file.edit("~/github/common-files/package_helpers.R")
 }
 
 #' runs these two functions together
@@ -100,15 +100,15 @@
 
 .alerts <- function(activate = TRUE) {
   alert_active <- ("beep" %in% getTaskCallbackNames())
-  
+
   if (activate & alert_active) {
     return(message("alerts: already on"))
   }
-  
+
   # activate if not on
   if (activate & !alert_active) {
     options(error = function() beepr::beep(9))
-    
+
     addTaskCallback(
      function(expr, value, ok, visible) {
        beepr::beep(5)
@@ -118,7 +118,7 @@
     )
     return(message("alerts: on"))
   }
-  
+
   # deactivate if on
   if (!activate & alert_active) {
     while ("beep" %in% getTaskCallbackNames()) {
@@ -154,7 +154,8 @@
 }
 
 
-.custom_functions()
+
+
 
 # invisible({
 #   # devtools::install_github("gaborcsardi/notifier")
