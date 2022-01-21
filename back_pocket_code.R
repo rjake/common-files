@@ -216,7 +216,7 @@ ls("package:dplyr")
 devtools::session_info()$packages$package
 
 
-# grab p-values for each column in the data set
+# grab the p-value for each column in the data set
 mpg |> 
   select_if(is.numeric) |> 
   map(shapiro.test) |> 
