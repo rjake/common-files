@@ -235,6 +235,50 @@ mpg |>
 #> 4 cty       0.957 1.74e- 6 Shapiro-Wilk normality test
 #> 5 hwy       0.959 3.00e- 6 Shapiro-Wilk normality test
 
+#### identify peaks and valleys ----
+df <-
+  tibble(
+    x = 1:50,
+    y = (sin(x) + 1) * 1000
+  ) |>
+  mutate(
+    is_peak = (
+      y > lag(y, default = first(y))
+      & y > lead(y, default = last(y))
+    ),
+    is_valley = (
+      y < lag(y, default = first(y))
+      & y < lead(y, default = last(y))
+    ),
+    group = cumsum(is_peak)
+  ) |>
+  print()
+
+# table only
+df |>
+  filter(group > 0) |> # remove incomplete group
+  group_by(group) |>
+  summarise(
+    min = min(y),
+    max = max(y)
+  )
+
+# plot
+df |>
+  mutate(
+    type = case_when(
+      is_peak ~ "peak",
+      is_valley ~ "valley",
+      TRUE ~ "other"
+    )
+  ) |>
+  ggplot(aes(x, y)) +
+  geom_line() +
+  geom_point(aes(color = type), shape = 21, size = 3, stroke = 2) +
+  scale_color_manual(values = c(NA, "blue", "red"))
+
+
+
 
 #### ggplot extras----
 # elipses
