@@ -351,3 +351,30 @@ shinyApp(
     })
   }
 )
+
+# plotly URL links
+library(tidyverse)
+library(plotly)      # ggplotly
+library(htmlwidgets) # onRender
+
+df <- 
+  mpg[1:2, ] |> 
+  mutate(urls = c("http://google.com", "https://stackoverflow.com"))
+
+p <- 
+  df |> 
+  ggplot(aes(cty, hwy, customdata = urls)) +
+  geom_point()
+
+# customdata matches the call in ggplot
+js <- "function(el, x) {
+      el.on('plotly_click', function(d) {
+        var point = d.points[0];
+        var url = point.data.customdata[point.pointIndex];
+        window.open(url);
+      });
+    }"
+
+
+ggplotly(p) |>  
+  onRender(js)
