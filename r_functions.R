@@ -77,7 +77,7 @@
 # package development ----
 #' opens package helpers
 .pkg_helpers <- function() {
-  file.edit("~/github/common-files/package_helpers.R")
+  rstudioapi::navigateToFile("~/github/common-files/package_helpers.R")
 }
 
 #' runs these two functions together
@@ -207,5 +207,5 @@
 #     rmarkdown::draft(file, template = template, package = pkg)
 #   )
 #
-#   file.edit(file)
+#   rstudioapi::navigateToFile(file)
 # }
