@@ -24,7 +24,7 @@ find_functions <- function(fn) {
 
   call <- function(expr, walker) {
     walkCode(expr[[1]], walker)
-    
+
     for (e in as.list(expr[-1])) {
       if (!missing(e)) {
         walkCode(e, walker)
@@ -43,7 +43,7 @@ find_functions <- function(fn) {
       write = cat
     )
   )
-  
+
   # return unique functions used
   unique(fns_used)
 }
@@ -53,41 +53,41 @@ find_functions <- function(fn) {
 find_functions(pkg_env$abc)
 
 
-df <- 
+df <-
   tibble(
     fn = as.list(pkg_env) |> names(),
     used = as.list(pkg_env) |> map(find_functions)
-  ) |> 
+  ) |>
   unnest(used) |>
-  filter(str_detect(used, "[a-zA-Z]")) |> 
+  filter(str_detect(used, "[a-zA-Z]")) |>
   filter(used %in% fn) |>
-  mutate_all(str_replace_all, "_", " ") |> 
+  mutate_all(str_replace_all, "_", " ") |>
   print()
 
 
 # function to create tables for network
 prep_for_network <- function(from, to, link_size = 3) {
-  nodes <- 
+  nodes <-
     tibble(
       name = factor(sort(unique(c(from, to)))),
       factor_id = as.integer(name),
       group = 1
     )
-  
-  links <- 
+
+  links <-
     tibble(
       source_name = from,
       target_name = to,
-      source = factor(source_name, levels(nodes$name)) |> as.integer() - 1, 
-      target = factor(target_name, levels(nodes$name)) |> as.integer() - 1, 
+      source = factor(source_name, levels(nodes$name)) |> as.integer() - 1,
+      target = factor(target_name, levels(nodes$name)) |> as.integer() - 1,
       n = link_size
     )
-  
-  nodes$group <- 
+
+  nodes$group <-
     factor(
       nodes$name %in% links$target_name
     )
-  
+
   list(
     nodes = nodes,
     links = links
@@ -96,10 +96,10 @@ prep_for_network <- function(from, to, link_size = 3) {
 
 
 # build link & node tables (list object)
-network <- 
+network <-
   prep_for_network(
-    from = df$used, 
-    to = df$fn, 
+    from = df$used,
+    to = df$fn,
     link_size = 7
   )
 
@@ -115,7 +115,7 @@ forceNetwork(
   Group = "group",
   arrows = TRUE,
   fontSize = 14,
-  colourScale = JS("d3.scaleOrdinal(d3.schemeCategory10);"),
+  colourScale = JS('d3.scaleOrdinal(["grey", "dodgerblue"])'),
   opacityNoHover = 1,
   linkDistance = 50,
   height = 500,
@@ -123,7 +123,8 @@ forceNetwork(
   bounded = TRUE,
   charge = -250,
   zoom = TRUE
-) |> 
+) |>
   suppressMessages()
+
 
 

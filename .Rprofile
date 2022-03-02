@@ -9,7 +9,7 @@ options(
 )
 
 #' opens r profile
-assign(".rprof", function() file.edit("C://Users/rileyj3/.Rprofile"), envir = globalenv())
+assign(".rprof", \() file.edit("~/.Rprofile"), envir = globalenv())
 
 
 # make FALSE when needing to update devtools, rstudioapi, shinyobjects, etc

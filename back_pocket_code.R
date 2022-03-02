@@ -215,6 +215,71 @@ ls("package:dplyr")
 # list packages loaded
 devtools::session_info()$packages$package
 
+
+# grab the p-value for each column in the data set
+mpg |> 
+  select_if(is.numeric) |> 
+  map(shapiro.test) |> 
+  map_dfr(
+    broom::tidy,
+    .id = "name" # what to call the list names seen in step 3
+  ) |> 
+  arrange(p.value)
+
+#> # A tibble: 5 x 4
+#>   name  statistic  p.value method                     
+#>   <chr>     <dbl>    <dbl> <chr>                      
+#> 1 year      0.636 4.91e-22 Shapiro-Wilk normality test
+#> 2 cyl       0.800 1.29e-16 Shapiro-Wilk normality test
+#> 3 displ     0.941 3.94e- 8 Shapiro-Wilk normality test
+#> 4 cty       0.957 1.74e- 6 Shapiro-Wilk normality test
+#> 5 hwy       0.959 3.00e- 6 Shapiro-Wilk normality test
+
+#### identify peaks and valleys ----
+df <-
+  tibble(
+    x = 1:50,
+    y = (sin(x) + 1) * 1000
+  ) |>
+  mutate(
+    is_peak = (
+      y > lag(y, default = first(y))
+      & y > lead(y, default = last(y))
+    ),
+    is_valley = (
+      y < lag(y, default = first(y))
+      & y < lead(y, default = last(y))
+    ),
+    group = cumsum(is_peak)
+  ) |>
+  print()
+
+# table only
+df |>
+  filter(group > 0) |> # remove incomplete group
+  group_by(group) |>
+  summarise(
+    min = min(y),
+    max = max(y)
+  )
+
+# plot
+df |>
+  mutate(
+    type = case_when(
+      is_peak ~ "peak",
+      is_valley ~ "valley",
+      TRUE ~ "other"
+    )
+  ) |>
+  ggplot(aes(x, y)) +
+  geom_line() +
+  geom_point(aes(color = type), shape = 21, size = 3, stroke = 2) +
+  scale_color_manual(values = c(NA, "blue", "red"))
+
+
+
+
 #### ggplot extras----
 # elipses
     ggplot(iris, aes(Petal.Width, Petal.Length, color = Species)) +
@@ -286,3 +351,30 @@ shinyApp(
     })
   }
 )
+
+# plotly URL links
+library(tidyverse)
+library(plotly)      # ggplotly
+library(htmlwidgets) # onRender
+
+df <- 
+  mpg[1:2, ] |> 
+  mutate(urls = c("http://google.com", "https://stackoverflow.com"))
+
+p <- 
+  df |> 
+  ggplot(aes(cty, hwy, customdata = urls)) +
+  geom_point()
+
+# customdata matches the call in ggplot
+js <- "function(el, x) {
+      el.on('plotly_click', function(d) {
+        var point = d.points[0];
+        var url = point.data.customdata[point.pointIndex];
+        window.open(url);
+      });
+    }"
+
+
+ggplotly(p) |>  
+  onRender(js)
