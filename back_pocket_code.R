@@ -352,7 +352,7 @@ shinyApp(
   }
 )
 
-# plotly URL links
+# plotly URL links ----
 library(tidyverse)
 library(plotly)      # ggplotly
 library(htmlwidgets) # onRender
@@ -378,3 +378,30 @@ js <- "function(el, x) {
 
 ggplotly(p) |>  
   onRender(js)
+
+# pseudo log scales ----
+library(tidyverse)
+pseudo_log <- function(x, sigma = 1, base = exp(1), labels = TRUE) {
+  # from scales::pseudo_log_trans
+  if (labels) {
+    2 * sigma * sinh(x * log(base))
+  } else {
+    asinh(x / (2 * sigma)) / log(base)
+  }
+}
+
+my_dens <- function(data, mapping, ...) {
+  ggplot(data = data, mapping=mapping) +
+    geom_density(..., alpha = 0.7) 
+}
+
+p <- 
+  iris |> 
+  mutate_if(is.numeric, pseudo_log, labels = FALSE) |>
+  GGally::ggpairs(
+    aes(color = Species),
+    diag = list(continuous = my_dens)
+  )
+
+p +
+  scale_y_continuous(labels = ~pseudo_log(.x, labels = TRUE))
