@@ -6,6 +6,7 @@ library(fontawesome)
 my_css <- # not needed if CSS In yml of dashboard
   read_file("https://raw.githubusercontent.com/twbs/bootstrap/main/dist/css/bootstrap.min.css")
 
+# check boxes ----
 # fontawesome
 my_icon <- function(x, color, ...) {
   fa(x, fill = color, ...) |> 
@@ -48,3 +49,29 @@ tibble(
   cols_width(matches("\\+") ~ px(80)) |>
   cols_align(matches("\\+"), align = "center") |>
   opt_css(my_css)
+
+# heatmap ----
+mpg_stats <- 
+  mpg |> 
+  filter(cyl != 5) |> 
+  count(class, cyl) |> 
+  arrange(cyl) |> 
+  mutate(class = fct_reorder(class, n, sum, .desc = TRUE))
+
+mpg_stats |> 
+  pivot_wider(
+    names_from = cyl,
+    values_from = n,
+    names_prefix = "cyl: "
+  ) |>
+  arrange(class) |> 
+  gt::gt() |> 
+  gt::tab_options(table.align = "left", table.margin.left = 50) |> 
+  gt::data_color(
+    columns = starts_with("cyl"),
+    colors = scales::col_numeric(
+      palette = c("lightblue", "cadetblue"),
+      domain = range(mpg_stats$n),
+      na.color = "lightgrey"
+    )
+  )

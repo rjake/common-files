@@ -1,11 +1,17 @@
 # workspace ----
 # set working directory to file location
-.set_here <- function() {
-  location <- rstudioapi::getActiveDocumentContext()$id
-  is_console <- (location  == "#console")
-
+.set_here <- function(generic = FALSE) {
   context <- rstudioapi::getSourceEditorContext()
-  wd <- paste0('setwd("', dirname(context$path), '")')
+  location <- rstudioapi::getActiveDocumentContext()$id
+  
+  if (generic) {
+    wd <- "setwd(dirname(.rs.api.getSourceEditorContext()$path))\n\n"
+  } else {
+    wd <- paste0('setwd("', dirname(context$path), '")\n\n')
+  }
+  
+  is_console <- (location  == "#console")
+  
 
   if (is_console) {
     rstudioapi::sendToConsole(
@@ -20,6 +26,7 @@
     )
   }
 }
+
 
 #' keeps only the objects that match the regex pattern
 #' @examples
@@ -77,7 +84,7 @@
 # package development ----
 #' opens package helpers
 .pkg_helpers <- function() {
-  file.edit("~/github/common-files/package_helpers.R")
+  rstudioapi::navigateToFile("~/github/common-files/package_helpers.R")
 }
 
 #' runs these two functions together
@@ -207,5 +214,5 @@
 #     rmarkdown::draft(file, template = template, package = pkg)
 #   )
 #
-#   file.edit(file)
+#   rstudioapi::navigateToFile(file)
 # }

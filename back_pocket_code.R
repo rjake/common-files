@@ -352,7 +352,7 @@ shinyApp(
   }
 )
 
-# plotly URL links
+# plotly URL links ----
 library(tidyverse)
 library(plotly)      # ggplotly
 library(htmlwidgets) # onRender
@@ -378,3 +378,46 @@ js <- "function(el, x) {
 
 ggplotly(p) |>  
   onRender(js)
+
+
+
+# pseudo log scales ----
+library(tidyverse)
+
+# large numbers
+large_numbers <- function(x, digits = 1) {
+  case_when(
+    x %/% 1e6 > 0 ~ paste0(round(x / 1e6, digits), "m"),
+    x > 1e3 ~ paste0(round(x / 1e3, digits), "k"),
+    TRUE ~ as.character(round(x, digits))
+  )
+}
+
+pseudo_log <- function(x, sigma = 1, base = exp(1), labels = TRUE, digits = 1) {
+  # from scales::pseudo_log_trans
+  if (labels) {
+    round(2 * sigma * sinh(x * log(base)), digits) |> 
+      large_numbers()
+  } else {
+    round(asinh(x / (2 * sigma)) / log(base), digits)
+  }
+}
+
+txhousing |> 
+  filter(str_detect(city, "Aus|Dal|Hou|San")) |> 
+  drop_na() |> 
+  group_by(x = month, y = city) |> 
+  summarise(metric = mean(sales)) |> 
+  ungroup() |> 
+  mutate(
+    x = factor(month.abb[x], levels = month.abb),
+    y = fct_reorder(y, metric, sum),
+    fill = pseudo_log(metric, labels = FALSE),
+    label = large_numbers(metric)
+  ) |> 
+  ggplot(aes(x, y)) +
+  geom_tile(aes(fill = fill), color = "white") + 
+  geom_text(aes(label = label), size = 3, color = "white") +
+  scale_fill_binned(labels = ~pseudo_log(.x, labels = TRUE, digits = 0)) +
+  coord_fixed()
+  
