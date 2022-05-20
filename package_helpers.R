@@ -6,15 +6,17 @@ devtools::document()
 # Load functions
 devtools::load_all()
 # Run tests first without package style
-devtools::test(filter = "package-style|summary", invert = TRUE)
-# with package-style (slow)
+devtools::test(); .beep()
+devtools::test(filter = "package-style|summary", invert = TRUE); .beep()
 devtools::test(filter = "package-style|summary"); beepr::beep(5);
 # check test coverage
 covr::report()
+# install
+devtools::install()
 # rebuild site
 pkgdown::build_site(devel = TRUE, lazy = TRUE)
 # Check if there are any package issues
-devtools::check(document = FALSE); beepr::beep(5);
+devtools::check(); beepr::beep(5);
 
 # other pkgdown functions commonly used
 pkgdown::build_reference()
@@ -37,6 +39,7 @@ file.edit("NEWS.md")
 # Run package spell check:
 spelling::spell_check_package()
 # may need to add/edit words
+# dir.create("inst"); file.create("inst/WORDLIST")
 file.edit("inst/WORDLIST")
 
 
