@@ -1,5 +1,42 @@
 # creating a reprex to troubleshoot devtools::check() or pkgdown
 
+# simple ------------------------------------------------------------
+# create tmp package
+tmp <- tempdir()
+pkg <- file.path(tmp, "test")
+devtools::create(path = pkg)
+
+# add R code
+writeLines(
+  con = file.path(pkg, "R/test.R"),
+  text = 
+    "#' does some stuff
+    #' @inheritDotParams glue::glue_data
+    #' @
+    foo <- function(...) glue_data(...)"
+)
+
+# document is ok
+devtools::document(pkg) 
+
+# throws warning
+devtools::check(pkg)
+# warning: prepare_Rd: ./man/foo.Rd:20: unknown macro '\item'
+
+# also throws warning
+pkgdown::build_reference(pkg)
+# In tools::parse_Rd(path, macros = macros, encoding = "UTF-8") :
+#   C:/Users/jake/AppData/Local/Temp/RtmpYxG5C2/test/man/foo.Rd:20: unknown macro '\item'
+
+# remove temp directory
+unlink(tmp, recursive = TRUE)
+
+
+
+
+
+# original ------------------------------------------------------
+
 # create dummy package
 tmp <- tempdir() 
 setwd(tmp)
