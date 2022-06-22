@@ -30,7 +30,7 @@ select_data <- function(system) {
     discard(is.na)
   
   
-  wide_hospital_data |> 
+  df |> 
     select(rename_list) |> 
     select(one_of(col_order)) |> 
     suppressWarnings()
