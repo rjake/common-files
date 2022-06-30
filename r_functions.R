@@ -45,7 +45,7 @@
 #' run .fn_to_env() in console
 .fn_to_env <- function(fn = NULL) {
   context <- rstudioapi::getSourceEditorContext()
-  old_code <- parse(text = context$selection[[1]]$text)
+  old_code <- parse(text = gsub("#'", "", x = context$selection[[1]]$text))
 
   # update primary function to list
   old_code[[1]][[1]] <- as.symbol("list")
