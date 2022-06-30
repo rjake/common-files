@@ -2,7 +2,7 @@
 # restart R
 rm(list = ls());.rs.restartR();
 # Update documentation (NAMESPACE) for functions
-devtools::document()
+devtools::document() # devtools::install_version("roxygen2", version = "7.1.2", repos = "http://cran.us.r-project.org")
 # Load functions
 devtools::load_all()
 # Run tests first without package style
