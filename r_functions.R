@@ -80,6 +80,29 @@
   print(x, n = Inf)
 }
 
+#' show one or more records vertically 
+#' @param df defaults to last thing printed
+#' @param n # of records
+#' @param width column width
+#' @param rows length of rows in the console (after flipped)
+#' 
+#' @examples 
+#' ggplot2::midwest
+#' .show_n()
+#' .show_n(ggplot2::midwest, n = 10, rows = 20)
+.show_n <- function(df = .Last.value, n = 3, width = 90 / n, rows = Inf) {
+	df |> 
+		head(n) |> 
+		dplyr::mutate_all(
+			~as.character(.x) |> 
+				stringr::str_sub(1, width) |> 
+				trimws()
+		) |> 
+		t() |> 
+		dplyr::as_tibble(rownames = "field") |> 
+		print(n = rows)
+}
+
 
 # package development ----
 #' opens package helpers
