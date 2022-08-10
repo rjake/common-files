@@ -1,0 +1,49 @@
+---
+title: "data frame printing"
+format: revealjs
+---
+
+## Default printing
+
+```{r}
+#| include: false
+library(knitr)
+library(gt)
+
+# https://gist.github.com/debruine/01b4ce274733a4a99622365e8c6df701
+# https://cran.r-project.org/web/packages/knitr/vignettes/knit_print.html#customize-printing
+knit_print.data.frame <- function(x, height = px(300), scale = 3, ...) {
+  df <-
+    gt(x) |>
+    tab_options(
+      container.height = height,
+      ...
+    ) |>
+    opt_horizontal_padding(scale = scale)
+
+  knitr::knit_print(df)
+}
+
+
+registerS3method("print", "data.frame", knit_print.data.frame)
+#                         ^^^^^^^^^^^ only applies to class = data.frame
+```
+
+```{r}
+mtcars
+```
+
+## Customized in `print(...)`
+
+```{r}
+print(mtcars, height = px(200), scale = 2)
+```
+
+## Already `gt`
+
+```{r}
+gt(mtcars) |> 
+  tab_options(container.height = px(150)) |>
+    opt_horizontal_padding(scale = 1.5)
+```
+
