@@ -8,6 +8,7 @@ format: revealjs
 ```{r}
 #| include: false
 library(knitr)
+library(kableExtra)
 library(gt)
 
 # https://gist.github.com/debruine/01b4ce274733a4a99622365e8c6df701
@@ -47,3 +48,12 @@ gt(mtcars) |>
     opt_horizontal_padding(scale = 1.5)
 ```
 
+## `kableExtra`
+
+```{r}
+options("kableExtra.html.bsTable" = TRUE)
+
+mtcars |>
+  knitr::kable() |> 
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
+```
