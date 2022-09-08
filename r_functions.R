@@ -45,20 +45,17 @@
 #' run .fn_to_env() in console
 .fn_to_env <- function(fn = NULL) {
   context <- rstudioapi::getSourceEditorContext()
-  old_code <- parse(text = gsub("#'", "", x = context$selection[[1]]$text))
-
-  # update primary function to list
-  old_code[[1]][[1]] <- as.symbol("list")
-
-  new_code <-
-    old_code |>
-    as.character() |>
-    paste(" |> list2env(envir = globalenv())")
-
-  rstudioapi::sendToConsole(
-    code = new_code,
-    execute = TRUE
-  )
+  clean_text <- gsub("#'", "", x = context$selection[[1]]$text)
+  expr <- parse(text = clean_text)
+  
+  args_used <- 
+    expr[[1]] |> 
+    as.call() |> 
+    rlang::call_standardise() |> 
+    as.list()
+  
+  args_used[-1] |> 
+    list2env(envir = globalenv())
 }
 
 
