@@ -10,8 +10,7 @@ mpg |>
     data = ~{
       nest_by(.x, class) |>
         summarize(broom::augment(lm(hwy ~ displ, data = data))) |>
-        arrange(displ) |> 
-        slice_tail(n = 1)
+        slice_max(order_by = displ, n = 1)
     }
   ) +
   scale_x_continuous(expand = expansion(add = c(0, 1))) +
@@ -19,15 +18,16 @@ mpg |>
 
 
 # OR make a function
+#' @examples
+#' last_lm_points(df = mpg, formula = hwy~displ, group = class)
 last_lm_points <- function(df, formula, group) {
+  # df <- mpg; formula <- as.formula(hwy~displ); group <- as.symbol("class");
+  x_arg <- formula[[3]]
   df |> 
     nest_by({{group}}) |> 
     summarize(broom::augment(lm(formula, data = data))) |>
-    arrange(1) |> 
-    slice_tail(n = 1)
+    slice_max(order_by = get(x_arg), n = 1)
 }
-
-last_lm_points(mpg, hwy~displ, class)
 
 mpg |>
   ggplot(aes(displ, hwy, colour = class, label = class)) +
