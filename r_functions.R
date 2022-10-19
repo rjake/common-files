@@ -41,20 +41,25 @@
 
 #' args to environment
 #' sends function innards to global environment
-#' highlight this code: my_fn(a = 1, b = 2)
+#' highlight this code: boxplot.stats(1:100)
 #' run .fn_to_env() in console
-.fn_to_env <- function(fn = NULL) {
+.fn_to_env <- function(include_defaults = TRUE) {
   context <- rstudioapi::getSourceEditorContext()
   clean_text <- gsub("#'", "", x = context$selection[[1]]$text)
   expr <- parse(text = clean_text)
   
+  fn <- get(expr[[1]][[1]])
+
   args_used <- 
-    expr[[1]] |> 
-    as.call() |> 
-    rlang::call_standardise() |> 
+    expr[[1]] |>
+    as.call() |>
+    rlang::call_match(
+      fn = fn, 
+      defaults = include_defaults
+    ) |> 
     as.list()
-  
-  args_used[-1] |> 
+
+  args_used[-1] |>
     list2env(envir = globalenv())
 }
 
