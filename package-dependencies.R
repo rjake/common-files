@@ -5,41 +5,54 @@ library(networkD3)
 
 
 # can change branch with:  system("git checkout feature/new_branch")
-pkg_env <- devtools::load_all()$env
-# pkg_env <-  asNamespace("simplecolors")
+#pkg_env <- devtools::load_all()$env
+pkg_env <- getNamespace("shiny")
 
+pkg_fns <- names(pkg_env)
 
 #' find symbols
 #' searches for functions but may also find object names, argument names,
 #' regex makes this less robust than rlang methods, will miss anything that
 #' doesn't start with a letter, period or underscore (special pipes)
 #' @examples
-#' find_symbols(expr = ggplot2::theme_bw)
+#' find_symbols(expr = shiny::runGadget)
+#' find_symbols(expr = shiny::runGadget, env = getNamespace("shiny"))
 #' find_symbols(expr = ggplot2::theme_bw , env = getNamespace("ggplot2"))
+#' 
 find_symbols <- function(expr, env = NULL) {
 
   unique_steps <-
     body(expr)[-1] |>
     as.character() |>
+    # new lines
     str_replace_all("\\\n", " ") |>
+    # ellipses
+    str_replace_all("\\.{3}", " ") |>
+    # anything between quotes
     str_remove_all('"[^"]+"') |>
     str_remove_all("'[^']+'") |>
+    # any of these (),~!
     str_replace_all("[\\(\\),~\\!]", " ") |>
+    # remove [ from subset
     str_replace_all("(?<=[a-zA-Z])\\[", " ") |>
+    # separate into words
     str_split(" ") |>
     flatten_chr() |>
     unique() |>
-    keep(~length(.x) > 0)
+    # drop words that have no characters
+    keep(~nchar(.x) > 0)
 
   args <-  formals(expr) |> names()
 
-  symbol_pattern <- "^[\\._a-zA-Z%][\\w\\._]*"
+  symbol_pattern <- "^[\\.\\$_a-zA-Z%][\\w\\._]*"
 
   if (missing(env)) {
     relevant_steps <-
       unique_steps |>
       keep(str_detect, symbol_pattern) |>
-      discard(str_detect, "\\$\\w")
+      discard(str_detect, "\\$\\w") |>
+      discard(~(.x %in% c(args, "FALSE", "NA", "NULL", "TRUE")))
+    
   } else {
     env_list <- ls(envir = env)
 
@@ -48,8 +61,7 @@ find_symbols <- function(expr, env = NULL) {
       keep(~(.x %in% env_list))
   }
 
-  relevant_steps |>
-    discard(~(.x %in% c(args, "FALSE", "NA", "NULL", "TRUE")))
+  relevant_steps
 }
 
 #' Use NAMESPACE file to find exports
@@ -73,26 +85,33 @@ find_exports <- function(ns_path) {
 #find_symbols(expr = pkg_env[[ ls(pkg_env)[1] ]])
 #find_symbols(expr = pkg_env[[ ls(pkg_env)[1] ]], env = pkg_env)
 
-export_list <- find_exports(ns_path = "NAMESPACE")
+export_list <- 
+  find_exports(ns_path = "NAMESPACE") |> 
+  intersect(pkg_fns)
 
-df <-
+all_fns <-
   tibble(
     fn = as.list(pkg_env) |> names(),
-    used = as.list(pkg_env) |> map(find_symbols, env = pkg_env)
+    used = as.list(pkg_env) |> map(possibly(find_symbols, NA), env = pkg_env)
   ) |>
   #slice(17) |>
   unnest(used, keep_empty = TRUE) |>
+  drop_na()
   #filter(str_detect(used, "[a-zA-Z]") | is.na(used)) %>%
   #filter(used %in% fn) |>
+
+all_nodes <- 
+  all_fns |> 
   mutate(id = row_number()) |>
+  #filter(str_detect(paste(fn, used), "download")) |> 
   pivot_longer(-id) |>
   add_count(value) |>
   mutate(n = ifelse(name == "used", NA, n)) |>
   group_by(id) |>
   fill(n) |>
+  ungroup() |> 
   pivot_wider(names_from = name, values_from = value) |>
   #mutate(used = ifelse(n == 1, "(not found)", used)) |>
-  drop_na() |>
   print()
 
 
@@ -153,13 +172,14 @@ prep_for_network <- function(from, to, link_size = 3) {
   )
 }
 
+#save.image(file = "~/github/one-off-projects/R/shiny-codebase-app/.RData")
 
 # build link & node tables (list object)
 network <-
   prep_for_network(
-    from = df$used,
-    to = df$fn,
-    link_size = 7
+    from = all_nodes$used,
+    to = all_nodes$fn,
+    link_size = 20
   )
 
 # network$nodes |>
@@ -181,11 +201,11 @@ forceNetwork(
   fontSize = 14,
   colourScale = JS('d3.scaleOrdinal(["grey", "dodgerblue"])'),
   opacityNoHover = 1,
-  linkDistance = 50,
-  height = 700,
-  width = 1000,
-  bounded = TRUE,
-  charge = -400,
+  linkDistance = 15,
+  #height = 1500,
+  #width = 2500,
+  #bounded = TRUE,
+  charge = -100,
   zoom = TRUE
 )
 
