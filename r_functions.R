@@ -73,6 +73,10 @@
     list2env(envir = globalenv())
 }
 
+# quarto ----
+.render_quarto  <- function(x = rstudioapi::getSourceEditorContext()$path) {
+  quarto::quarto_render(x, output_format = "all")
+}
 
 # reprex ----
 #' surrounds selected reprex with ticks
