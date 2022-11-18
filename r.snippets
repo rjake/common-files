@@ -1,0 +1,25 @@
+# %appdata%/Roaming/RStudio/snippets/r.snippets
+# https://support.posit.co/hc/en-us/articles/204463668-Code-Snippets
+
+snippet lf
+	(\(${1:x}) {
+		${2:fun}(${1})
+	})()
+
+snippet runapp
+	shinyApp(
+		ui = {
+			${1}selectInput(
+				inputId = "test", 
+				label = "test", 
+				choices = LETTERS[1:5]
+			)
+		},
+		server = function(input, output, session) {
+			
+		}
+	) |>
+		runApp(launct.browser = rstudioapi::viewer)
+
+#snippet lib
+#	library(${1:package})
