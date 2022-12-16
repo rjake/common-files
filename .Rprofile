@@ -18,3 +18,18 @@ if (TRUE) {
   source("~/r_functions.R")
   .custom_functions()
 }
+
+
+# print a fun message
+setHook("rstudio.sessionInit", function(newSession) {
+  # cat("\014") # clears console
+  cowsay::say(
+    what = paste(
+      httr::content(httr::GET("https://tedlassoquotes.com/v1/quote"))[1:2],
+      collapse = " "
+    ),
+    by = "random",
+    what_color = randomcoloR::randomColor(),
+    by_color = randomcoloR::randomColor(luminosity = "bright")
+  )
+}, action = "append")
