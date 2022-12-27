@@ -1,0 +1,160 @@
+---
+title: "Start-up message"
+output: html_document
+date: "2022-12-27"
+---
+
+Add this code to zzz.R file inside code package
+
+```{r}
+#' Add a random tip of the day
+#' @description Tip is disabled if the user has options(<pkg>.quiet = TRUE)
+#' in their .Rprofile
+#'
+#' @param libname required with .onAttach()
+#' @param pkgname required with .onAttach()
+#' @noRd
+.onAttach <- function(libname, pkgname) {
+  # look at https://github.com/tidyverse/ggplot2/blob/main/R/zzz.r
+  if (!interactive() || isTRUE(getOption(paste0(pkgname, "quiet"))) {
+    return()
+  }
+  
+  random_tip(pkg = pkgname)
+}
+
+#' Helper function to generate a random greeting
+#' @importFrom dplyr case_when
+#' @noRd
+random_greeting <- function() {
+  time <- Sys.time()
+  hour <- as.POSIXlt(time)$hour
+  seed_value <- as.POSIXlt(time)$sec
+  
+  morning <- "\U0001f31e Good morning!"
+  midday <- "\U0001f31e Good afternoon!"
+  evening <- "\U0001f31c Good evening!"
+  other <- "\U0001f44b Hi there!"
+  
+  greeting <-
+    case_when(
+      hour < 5 | hour > 21 ~  other,
+      hour < 12 ~ morning,
+      hour < 17 ~ midday,
+      hour < 21 ~ evening
+    )
+  
+  set.seed(seed_value)
+  closer <-
+    c(
+      "Have a great day rockstar \U0001f3b8",
+      "Have a great day superstar \U00002728",
+      "Have a great day friend \U0001f600",
+      "Have a great day coding wizard \U0001f9d9",
+      "Have a fantastical day \U0001f9dc"
+    ) |>
+    sample(1)
+  
+  list(
+    hi = greeting,
+    bye = closer
+  )
+}
+
+
+#' Helper function to provide random tip
+#' @param pkg the name of the package
+#' @importFrom dplyr as_tibble select filter group_by summarise sample_n
+#' @importFrom glue glue glue_collapse
+#' @importFrom stringr str_wrap
+#' @importFrom cli style_bold col_br_blue col_br_cyan
+#' @noRd
+random_tip <- function(pkg) {
+  msg <- random_greeting()
+  x <- help.search("*", package = pkg)
+  entries <- tibble::as_tibble(x$matches)
+  topics <-
+    entries |>
+    select(-LibPath) |>
+    #filter(grepl("spc", x = Topic)) |>
+    filter(Field == "alias") |>
+    filter(Entry %in% getNamespaceExports(pkg))
+  
+  
+  # ensure random function is selected
+  set.seed(as.integer(Sys.time()))
+  
+  topic_info <-
+    topics |>
+    group_by(Topic, Title) |>
+    summarise(
+      fns = glue(cli::style_bold("{Entry}()")) |> glue_collapse(" | "),
+      .groups = "drop"
+    )
+  
+  topic_info |>
+    #dplyr::slice(15) |>
+    #dplyr::slice(21) |>
+    sample_n(1) |>
+    as.list() |>
+    glue_data(
+      "[border]
+      [msg$hi] Here is today's [bold('[pkg]')] topic:
+
+      [cyan('[fns]')]
+
+      [Title]
+
+      See \\
+      [cyan('{.fun [pkg]::[Topic]}')] \\
+      to learn more
+
+      [msg$bye]
+      [border]
+      [black('Turn off message with')] [cyan('options([pkg].quiet = TRUE)')]
+      ",
+      .trim = TRUE,
+      .open = "[",
+      .close = "]",
+      border = rep("-", getOption("width")) |> paste(collapse = ""),
+      black = \(x) cli::col_br_black(glue(x, .open = "[",  .close = "]")),
+      bold = \(x) cli::style_bold(glue(x, .open = "[",  .close = "]")),
+      cyan = \(x) cli::col_cyan(glue(x, .open = "[",  .close = "]")),
+      magenta = \(x) cli::col_br_magenta(glue(x, .open = "[",  .close = "]"))
+    ) |>
+    cli::cli_text() |> # interprets {.fun} to open help menu
+    packageStartupMessage() # suppressible by suppressPackageStartupMessages
+}
+```
+
+```{r}
+random_tip("headliner")
+```
+-----------------------------------------------------------------------------------------------------------------------------------------
+🌞 Good morning! Here is today's headliner topic:
+
+demo_data()
+
+Small data set referencing the current date
+
+See `headliner::demo_data()` to learn more
+
+Have a great day rockstar 🎸
+-----------------------------------------------------------------------------------------------------------------------------------------
+Turn off message with options(headliner.quiet = TRUE)
+
+```{r}
+random_tip("ggplot2")
+```
+-----------------------------------------------------------------------------------------------------------------------------------------
+🌞 Good morning! Here is today's ggplot2 topic:
+
+position_stack() | position_fill()
+
+Stack overlapping objects on top of each another
+
+See `ggplot2::position_stack()` to learn more
+
+Have a fantastical day 🧜
+-----------------------------------------------------------------------------------------------------------------------------------------
+Turn off message with options(ggplot2.quiet = TRUE)
