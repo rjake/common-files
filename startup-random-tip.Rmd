@@ -4,7 +4,7 @@ output: html_document
 date: "2022-12-27"
 ---
 
-Add this code to zzz.R file inside code package
+Add this code to your R package under `R/zzz.R`
 
 ```{r}
 #' Add a random tip of the day
@@ -126,6 +126,8 @@ random_tip <- function(pkg) {
     packageStartupMessage() # suppressible by suppressPackageStartupMessages
 }
 ```
+
+Here is what the output looks like. Inside your package, the `pkgname` argument will automatically use your package inside `.onAttach()`
 
 ```{r}
 random_tip("headliner")
