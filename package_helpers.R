@@ -6,13 +6,13 @@ devtools::document() # devtools::install_version("roxygen2", version = "7.1.2", 
 # Load functions
 devtools::load_all()
 # Run tests first without package style
-devtools::test(); .beep()
-devtools::test(filter = "package-style|summary", invert = TRUE); .beep()
+# devtools::test(); .beep()
+devtools::test(filter = "package-style|summary", invert = TRUE, stop_on_failure = TRUE); .beep()
 devtools::test(filter = "package-style|summary"); beepr::beep(5);
 # check test coverage
 covr::report()
 # install
-devtools::install()
+devtools::install(build_vignettes = TRUE)
 # rebuild site
 pkgdown::build_site(devel = TRUE, lazy = TRUE)
 # Check if there are any package issues
