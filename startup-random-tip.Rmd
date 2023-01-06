@@ -4,6 +4,7 @@ output: html_document
 date: "2022-12-27"
 ---
 
+## Code
 Add this code to your R package under `R/zzz.R`
 
 ```{r}
@@ -24,40 +25,36 @@ Add this code to your R package under `R/zzz.R`
 }
 
 #' Helper function to generate a random greeting
+#' @param time timestamp used to pick correct greeting
 #' @importFrom dplyr case_when
 #' @noRd
-random_greeting <- function() {
-  time <- Sys.time()
+#' @examples random_greeting()
+random_greeting <- function(time = Sys.time()) {
   hour <- as.POSIXlt(time)$hour
-  seed_value <- as.POSIXlt(time)$sec
-  
-  morning <- "\U0001f31e Good morning!"
-  midday <- "\U0001f31e Good afternoon!"
-  evening <- "\U0001f31c Good evening!"
-  other <- "\U0001f44b Hi there!"
-  
+
   greeting <-
     case_when(
-      hour < 5 | hour > 21 ~  other,
-      hour < 12 ~ morning,
-      hour < 17 ~ midday,
-      hour < 21 ~ evening
+      hour < 5 | hour >= 21 ~  "\U0001f44b Hi there!",
+      hour < 12 ~ "\U0001f31e Good morning!",
+      hour < 17 ~ "\U0001f31e Good afternoon!",
+      hour < 21 ~ "\U0001f31c Good evening!"
     )
-  
-  set.seed(seed_value)
-  closer <-
+
+  closing <-
     c(
       "Have a great day rockstar \U0001f3b8",
       "Have a great day superstar \U00002728",
       "Have a great day friend \U0001f600",
       "Have a great day coding wizard \U0001f9d9",
       "Have a fantastical day \U0001f9dc"
-    ) |>
-    sample(1)
-  
+    )
+
+  # use modulo with 1-index (instead of 0-index)
+  closer_id <- (as.integer(time) %% length(closing)) + 1
+
   list(
     hi = greeting,
-    bye = closer
+    bye = closing[closer_id]
   )
 }
 
@@ -67,34 +64,34 @@ random_greeting <- function() {
 #' @importFrom dplyr as_tibble select filter group_by summarise sample_n
 #' @importFrom glue glue glue_collapse
 #' @importFrom stringr str_wrap
-#' @importFrom cli style_bold col_br_blue col_br_cyan
+#' @importFrom cli style_bold col_br_black col_br_cyan col_br_magenta cli_text
 #' @noRd
 random_tip <- function(pkg) {
   msg <- random_greeting()
   x <- help.search("*", package = pkg)
-  entries <- tibble::as_tibble(x$matches)
+  entries <-as_tibble(x$matches)
   topics <-
     entries |>
     select(-LibPath) |>
     #filter(grepl("spc", x = Topic)) |>
     filter(Field == "alias") |>
     filter(Entry %in% getNamespaceExports(pkg))
-  
-  
+
+
   # ensure random function is selected
   set.seed(as.integer(Sys.time()))
-  
+
   topic_info <-
     topics |>
     group_by(Topic, Title) |>
     summarise(
-      fns = glue(cli::style_bold("{Entry}()")) |> glue_collapse(" | "),
+      fns =
+        glue(cli::style_bold("{Entry}()")) |>
+        glue_collapse(" | "),
       .groups = "drop"
     )
-  
+
   topic_info |>
-    #dplyr::slice(15) |>
-    #dplyr::slice(21) |>
     sample_n(1) |>
     as.list() |>
     glue_data(
@@ -119,12 +116,13 @@ random_tip <- function(pkg) {
       border = rep("-", getOption("width")) |> paste(collapse = ""),
       black = \(x) cli::col_br_black(glue(x, .open = "[",  .close = "]")),
       bold = \(x) cli::style_bold(glue(x, .open = "[",  .close = "]")),
-      cyan = \(x) cli::col_cyan(glue(x, .open = "[",  .close = "]")),
+      cyan = \(x) cli::col_br_cyan(glue(x, .open = "[",  .close = "]")),
       magenta = \(x) cli::col_br_magenta(glue(x, .open = "[",  .close = "]"))
     ) |>
     cli::cli_text() |> # interprets {.fun} to open help menu
     packageStartupMessage() # suppressible by suppressPackageStartupMessages
 }
+
 ```
 
 Here is what the output looks like. Inside your package, the `pkgname` argument will automatically use your package inside `.onAttach()`
@@ -160,3 +158,24 @@ See `ggplot2::position_stack()` to learn more
 Have a fantastical day 🧜
 -----------------------------------------------------------------------------------------------------------------------------------------
 Turn off message with options(ggplot2.quiet = TRUE)
+
+## Testing
+The `testthat` package will already be loaded
+```{r}
+test_that("random greetings are based on time of day", {
+  times <-
+    as.POSIXct("2023-01-01 00:00:00") +
+    lubridate::hours(0:23) +
+    lubridate::seconds(0:23)
+
+  all_statements <- random_greeting(times)
+  expect_equal(length(unique(all_statements$hi)), 4)
+  expect_equal(length(unique(all_statements$bye)), 5)
+})
+
+
+test_that("random tip works", {
+  expect_message(random_tip("forcats"), "forcats\\.quiet")
+  expect_message(random_tip("glue"), "glue\\.quiet")
+})
+```
