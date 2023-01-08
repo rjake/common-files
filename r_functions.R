@@ -3,15 +3,15 @@
 .set_here <- function(generic = FALSE) {
   context <- rstudioapi::getSourceEditorContext()
   location <- rstudioapi::getActiveDocumentContext()$id
-  
+
   if (generic) {
     wd <- "setwd(dirname(.rs.api.getSourceEditorContext()$path))\n\n"
   } else {
     wd <- paste0('setwd("', dirname(context$path), '")\n\n')
   }
-  
+
   is_console <- (location  == "#console")
-  
+
 
   if (is_console) {
     rstudioapi::sendToConsole(
@@ -47,9 +47,9 @@
   context <- rstudioapi::getSourceEditorContext()
   clean_text <- gsub("#'", "", x = context$selection[[1]]$text)
   expr <- parse(text = clean_text)
-  
+
   fn <- get(expr[[1]][[1]])
-  
+
   call_list <-
     expr[[1]] |>
     as.call() |>
@@ -58,17 +58,17 @@
       defaults = include_defaults
     ) |>
     as.list()
-  
+
   args_only <- call_list[-1]
   arg_types <- map(args_only, is) |> map_chr(pluck, 1)
-  
+
   update_symbols <-
     modify_if(
       .x = args_only,
       .p = ~inherits(.x, "name") && length(.x) == 1,
       .f = ~rlang::sym(deparse(x))
     )
-  
+
   update_symbols |>
     list2env(envir = globalenv())
 }
@@ -96,27 +96,29 @@
   print(x, n = Inf)
 }
 
-#' show one or more records vertically 
+#' show one or more records vertically
 #' @param df defaults to last thing printed
 #' @param n # of records
 #' @param width column width
 #' @param rows length of rows in the console (after flipped)
-#' 
-#' @examples 
+#'
+#' @examples
 #' ggplot2::midwest
 #' .show_n()
-#' .show_n(ggplot2::midwest, n = 10, rows = 20)
+#' .show_n(ggplot2::midwest, n = 5, rows = 10)
+#' .show_n(tidyr::billboard, n = 3, width = 10, rows = 20)
 .show_n <- function(df = .Last.value, n = 3, width = 90 / n, rows = Inf) {
-	df |> 
-		head(n) |> 
-		dplyr::mutate_all(
-			~as.character(.x) |> 
-				stringr::str_sub(1, width) |> 
-				trimws()
-		) |> 
-		t() |> 
-		dplyr::as_tibble(rownames = "field") |> 
-		print(n = rows)
+  df |>
+    head(n) |>
+    t() |>
+    as.data.frame() |>
+    dplyr::as_tibble(rownames = "column") |>
+    dplyr::mutate_all(
+      ~as.character(.x) |>
+        substr(start = 1, stop = as.integer(width)) |>
+        trimws()
+    ) |>
+    print(n = rows)
 }
 
 
