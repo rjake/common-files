@@ -94,7 +94,7 @@ g <-
 plot(g, layout = layout_as_tree(g))
 
 
-## subset ----
+## show subset ----
 root <- "p6" 
 sg <- subgraph_root(g, root, direction = "out")
 
@@ -117,6 +117,8 @@ paths <- find_all_paths(sg, root) |> print()
 paths |> subgraph_path_to_table() 
 paths |> subgraph_path_to_table(sep = "--") 
 paths |> subgraph_path_to_table(to_cols = TRUE) 
+
+
 
 ## ggnetwork ----
 library(ggplot2)
