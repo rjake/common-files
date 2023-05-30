@@ -66,16 +66,12 @@ subgraph_path_to_table <- function(paths, sep = " -> ", to_cols = FALSE) {
 }
 
 
-
-
-
-
 # in action ----
 ## prep ----
 raw_data <- 
   make_tree(30, 2) |> 
   as_data_frame() |> 
-  bind_rows( tibble(from = c(12:14), to = c(11, 22:23)) ) |> 
+  bind_rows( tibble(from = c(24, 27), to = c(11, 14)) ) |> 
   print()
 
 network_edges <- 
@@ -97,14 +93,23 @@ g <-
 
 plot(g, layout = layout_as_tree(g))
 
+
 ## subset ----
 root <- "p6" 
 sg <- subgraph_root(g, root, direction = "out")
-plot(
-  sg, 
-  layout = layout_as_tree(sg), 
-  edge.curved = seq(0.5, -0.5, length = ecount(sg))
-)
+
+V(g)$color <- "grey80"
+V(g)$color[V(g)$name == root] <- "darkorange"
+V(g)$color[V(g)$name %in% V(sg)$name] <- "darkgoldenrod1"
+E(g)$color <- "grey80"
+E(g)$color[
+  str_detect( str_extract(attr(E(g), "vnames"), "^[^|]+"), glue_collapse(V(sg)$name, "|") ) 
+  & str_detect( str_extract(attr(E(g), "vnames"), "[^|]+$"), glue_collapse(V(sg)$name, "|") )
+] <- "black"
+
+plot(g, layout = layout_as_tree(g), edge.arrow.size = 1, vertex.size = 15)
+plot(sg, layout = layout_as_tree(sg))
+
 
 ## show cols ----
 paths <- find_all_paths(sg, root) |> print()
