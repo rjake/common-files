@@ -41,35 +41,56 @@
 
 #' args to environment
 #' sends function innards to global environment
-#' highlight this code: boxplot.stats(1:100, hwy)
+#' highlight this code: boxplot.stats(1:100)
 #' run .fn_to_env() in console
+#' then run .fn_to_env(TRUE) to include defaults
+#' @examples
+#' # this becomes x = 1,2,3... 
+#'   boxplot.stats(1:100)
+#' 
+#' # can handle lazy eval, this example would extramt 'gear' to a symbol so 
+#' # you could debug something like dplyr::count(data, cols = {{cols}})
+#'   tidyr::pivot_longer(mtcars, gear) 
+#'   
 .fn_to_env <- function(include_defaults = FALSE) {
   context <- rstudioapi::getSourceEditorContext()
   clean_text <- gsub("#'", "", x = context$selection[[1]]$text)
-  expr <- parse(text = clean_text)
-
-  fn <- get(expr[[1]][[1]])
-
-  call_list <-
-    expr[[1]] |>
+  expr <- rlang::parse_expr(clean_text)
+  fn <- eval(expr[[1]])
+  
+  call_list <- # bring back all arguments as a list
+    expr |>
     as.call() |>
     rlang::call_match(
       fn = fn,
       defaults = include_defaults
     ) |>
     as.list()
+  
+  args_only <- call_list[-1] # drop function symbol
 
-  args_only <- call_list[-1]
-  arg_types <- map(args_only, is) |> map_chr(pluck, 1)
-
-  update_symbols <-
-    modify_if(
+  get_symbols <- # evaluate objects in environment/search path
+    purrr:::modify_if(
       .x = args_only,
+      .p = ~exists(deparse(.x)),
+      .f = ~get(deparse(.x))
+    )
+  
+  update_symbols <- # if column names are used, deparse the arguments, need to test more
+    purrr:::modify_if(
+      .x = get_symbols,
       .p = ~inherits(.x, "name") && length(.x) == 1,
-      .f = ~rlang::sym(deparse(x))
+      .f = ~rlang::sym(deparse(.x))
+    )
+  
+  eval_results <- # evaluate arguments like x = 1:100
+    purrr:::modify_if(
+      .x = update_symbols,
+      .p = ~!(inherits(.x, "name") && length(.x) == 1),
+      .f = ~eval(.x)
     )
 
-  update_symbols |>
+  eval_results |>
     list2env(envir = globalenv())
 }
 
