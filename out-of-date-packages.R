@@ -46,3 +46,17 @@ out_of_date |>
   rename(`___M____m____r____b` = diff) |> 
   print(n = Inf) |> 
   suppressWarnings()
+
+
+# Add version separator
+version_separator <- function(x) {
+  major = str_extract(x, "^\\d+") |> str_pad(2, "left", "0")
+
+  if (is.na(major)) {
+    return(NA)
+  }
+
+  minor = str_extract(x, "(?<=\\.)\\d+(?=\\.)") |> str_pad(2, "left", "0")
+  fix = str_extract(x, "\\d+$") |> str_pad(2, "left", "0")
+  paste(major, minor, fix)
+}
