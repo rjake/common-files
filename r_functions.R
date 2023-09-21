@@ -112,6 +112,26 @@
 
 
 # print ----
+#' print data frames if interactive
+.df_print <- function(enable = TRUE, n = 6) {
+  cb_name <- "head_df"
+  cb_id <- which(getTaskCallbackNames() == cb_name)
+  
+  if (!cb_id & enable) {
+    addTaskCallback(
+      name = "head_df",
+      function(expr, result, complete, printed, ...) { 
+        if (!printed && inherits(result, "data.frame")) {
+          print(head(result, n))
+        }
+        TRUE
+      }
+    )
+  } else if (cb_id & !enable) {
+    removeTaskCallback(id = cb_id)
+  }
+}
+
 #' print all rows
 .print <- function(x) {
   print(x, n = Inf)
