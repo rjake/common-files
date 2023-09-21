@@ -115,9 +115,9 @@
 #' print data frames if interactive
 .df_print <- function(enable = TRUE, n = 6) {
   cb_name <- "head_df"
-  cb_id <- which(getTaskCallbackNames() == cb_name)
+  cb_exists <- cb_name %in% getTaskCallbackNames()
   
-  if (!cb_id & enable) {
+  if (!cb_exists & enable) {
     addTaskCallback(
       name = "head_df",
       function(expr, result, complete, printed, ...) { 
@@ -127,8 +127,8 @@
         TRUE
       }
     )
-  } else if (cb_id & !enable) {
-    removeTaskCallback(id = cb_id)
+  } else if (cb_exists & !enable) {
+    removeTaskCallback(cb_name)
   }
 }
 
@@ -187,38 +187,41 @@
   beepr::beep(5)
 }
 
-.alerts <- function(activate = TRUE) {
-  alert_active <- ("beep" %in% getTaskCallbackNames())
-
-  if (activate & alert_active) {
-    return(message("alerts: already on"))
+.alerts <- function(enable = TRUE) {
+  cb_name <- "use_alert"
+  cb_exists <- cb_name %in% getTaskCallbackNames()
+  
+  # identify the default error message: in RStudio: Debug > On Error > Error Inspector
+  # options()$error
+  default_error <- function() {
+    .rs.recordTraceback(FALSE, 5, .rs.enqueueError)
   }
 
-  # activate if not on
-  if (activate & !alert_active) {
+  if (enable & cb_exists) {
+    return(message("alerts: already on"))
+  }
+  
+  # enable if not on
+  if (!cb_exists & enable) {
     options(error = function() beepr::beep(9))
 
     addTaskCallback(
-     function(expr, value, ok, visible) {
+     function(expr, result, complete, printed, ...) {
        beepr::beep(5)
        TRUE
      },
-     name = "beep"
+     name = cb_name
     )
     return(message("alerts: on"))
   }
 
   # deactivate if on
-  if (!activate & alert_active) {
-    while ("beep" %in% getTaskCallbackNames()) {
-      removeTaskCallback("beep")
+  if (cb_exists & !enable) {
+    while (cb_name %in% getTaskCallbackNames()) {
+      removeTaskCallback(cb_name)
     }
-    return(
-      message(
-        "alerts: off\n",
-        "To reset options(error): Debug > On Error > Error Inspector"
-      )
-    )
+    options(error = default_error)
+    return(message("alerts: off"))
   }
 }
 
