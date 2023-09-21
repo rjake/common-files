@@ -113,28 +113,42 @@
 
 # print ----
 #' print data frames if interactive
-.df_print <- function(enable = TRUE, n = 6) {
-  cb_name <- "head_df"
+.print_df <- function(enable = TRUE, ...) {
+  cb_name <- "print_df"
   cb_exists <- cb_name %in% getTaskCallbackNames()
-  
+
   if (!cb_exists & enable) {
     addTaskCallback(
-      name = "head_df",
-      function(expr, result, complete, printed, ...) { 
+      name = cb_name,
+      function(expr, result, complete, printed, ...) {
         if (!printed && inherits(result, "data.frame")) {
-          print(head(result, n))
+          print(result, ...)
         }
         TRUE
       }
     )
   } else if (cb_exists & !enable) {
-    removeTaskCallback(cb_name)
+    while (cb_name %in% getTaskCallbackNames()) {
+      removeTaskCallback(cb_name)
+    }
   }
 }
 
 #' print all rows
-.print <- function(x) {
+#' needs to override and re-establish .print_df()
+.print_inf <- function(x) {
+  cb_name <- "print_df"
+  has_print_df <- cb_name %in% getTaskCallbackNames()
+
+  if (has_print_df) {
+    removeTaskCallback(cb_name)
+  }
+
   print(x, n = Inf)
+
+  if (has_print_df) {
+    invisible(.print_df())
+  }
 }
 
 #' show one or more records vertically
@@ -196,7 +210,7 @@
   default_error <- function() {
     .rs.recordTraceback(FALSE, 5, .rs.enqueueError)
   }
-
+  
   if (enable & cb_exists) {
     return(message("alerts: already on"))
   }
@@ -206,15 +220,15 @@
     options(error = function() beepr::beep(9))
 
     addTaskCallback(
-     function(expr, result, complete, printed, ...) {
-       beepr::beep(5)
-       TRUE
-     },
-     name = cb_name
+      name = cb_name,
+      function(expr, result, complete, printed, ...) {
+        beepr::beep(5)
+        TRUE
+      }
     )
     return(message("alerts: on"))
   }
-
+  
   # deactivate if on
   if (cb_exists & !enable) {
     while (cb_name %in% getTaskCallbackNames()) {
@@ -300,4 +314,3 @@
 #   )
 #
 #   rstudioapi::navigateToFile(file)
-# }
