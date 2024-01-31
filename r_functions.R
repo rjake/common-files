@@ -45,19 +45,19 @@
 #' run .fn_to_env() in console
 #' then run .fn_to_env(TRUE) to include defaults
 #' @examples
-#' # this becomes x = 1,2,3... 
+#' # this becomes x = 1,2,3...
 #'   boxplot.stats(1:100)
-#' 
-#' # can handle lazy eval, this example would extramt 'gear' to a symbol so 
+#'
+#' # can handle lazy eval, this example would extramt 'gear' to a symbol so
 #' # you could debug something like dplyr::count(data, cols = {{cols}})
-#'   tidyr::pivot_longer(mtcars, gear) 
-#'   
+#'   tidyr::pivot_longer(mtcars, gear)
+#'
 .fn_to_env <- function(include_defaults = FALSE) {
   context <- rstudioapi::getSourceEditorContext()
   clean_text <- gsub("#'", "", x = context$selection[[1]]$text)
   expr <- rlang::parse_expr(clean_text)
   fn <- eval(expr[[1]])
-  
+
   call_list <- # bring back all arguments as a list
     expr |>
     as.call() |>
@@ -66,7 +66,7 @@
       defaults = include_defaults
     ) |>
     as.list()
-  
+
   args_only <- call_list[-1] # drop function symbol
 
   get_symbols <- # evaluate objects in environment/search path
@@ -75,14 +75,14 @@
       .p = ~exists(deparse(.x)),
       .f = ~get(deparse(.x))
     )
-  
+
   update_symbols <- # if column names are used, deparse the arguments, need to test more
     purrr:::modify_if(
       .x = get_symbols,
       .p = ~inherits(.x, "name") && length(.x) == 1,
       .f = ~rlang::sym(deparse(.x))
     )
-  
+
   eval_results <- # evaluate arguments like x = 1:100
     purrr:::modify_if(
       .x = update_symbols,
@@ -124,7 +124,7 @@
         if (!printed && inherits(result, "data.frame")) {
           print(result, ...)
         }
-        TRUE
+        invisible()
       }
     )
   } else if (cb_exists & !enable) {
@@ -183,52 +183,50 @@
   rstudioapi::navigateToFile("~/github/common-files/package_helpers.R")
 }
 
+
+.covr <- function() {
+  covr::report(covr::package_coverage())
+}
+
 #' runs these two functions together
 .devload <- function() {
   devtools::document()
   devtools::load_all()
+  library(testthat)
+  library(mockery)
 }
 
 
 # other ----
-#' opens r profile
-.rprof <- function(edit_r_profile) {
-  usethis::edit_r_profile()
-}
-
-#' creates beep
-.beep <- function() {
-  beepr::beep(5)
-}
 
 .alerts <- function(enable = TRUE) {
   cb_name <- "use_alert"
   cb_exists <- cb_name %in% getTaskCallbackNames()
-  
+
   # identify the default error message: in RStudio: Debug > On Error > Error Inspector
   # options()$error
   default_error <- function() {
     .rs.recordTraceback(FALSE, 5, .rs.enqueueError)
   }
-  
+
   if (enable & cb_exists) {
     return(message("alerts: already on"))
   }
-  
+
   # enable if not on
   if (!cb_exists & enable) {
     options(error = function() beepr::beep(9))
 
     addTaskCallback(
-      name = cb_name,
       function(expr, result, complete, printed, ...) {
         beepr::beep(5)
         TRUE
-      }
+      },
+      name = cb_name
     )
     return(message("alerts: on"))
   }
-  
+
   # deactivate if on
   if (cb_exists & !enable) {
     while (cb_name %in% getTaskCallbackNames()) {
@@ -239,6 +237,23 @@
   }
 }
 
+#' creates beep
+.beep <- function() {
+  beepr::beep(5)
+}
+
+
+.msg <- function(...) {
+  system(
+    paste0("msg *", ...)
+  )
+  invisible()
+}
+
+#' opens r profile
+.rprof <- function(edit_r_profile) {
+  usethis::edit_r_profile()
+}
 
 # show list at start ----
 #' prints list of functions in this file
@@ -258,6 +273,8 @@
     )
   )
 }
+
+.print_df()
 
 
 
