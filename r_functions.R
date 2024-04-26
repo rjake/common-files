@@ -38,7 +38,6 @@
   rm(list = to_remove, envir = globalenv())
 }
 
-
 #' args to environment
 #' sends function innards to global environment
 #' highlight this code: boxplot.stats(1:100)
@@ -51,7 +50,6 @@
 #' # can handle lazy eval, this example would extramt 'gear' to a symbol so
 #' # you could debug something like dplyr::count(data, cols = {{cols}})
 #'   tidyr::pivot_longer(mtcars, gear)
-#'
 .fn_to_env <- function(include_defaults = FALSE) {
   context <- rstudioapi::getSourceEditorContext()
   clean_text <- gsub("#'", "", x = context$selection[[1]]$text)
@@ -124,7 +122,7 @@
         if (!printed && inherits(result, "data.frame")) {
           print(result, ...)
         }
-        invisible()
+        TRUE
       }
     )
   } else if (cb_exists & !enable) {
@@ -136,7 +134,7 @@
 
 #' print all rows
 #' needs to override and re-establish .print_df()
-.print_inf <- function(x) {
+.print <- function(x) {
   cb_name <- "print_df"
   has_print_df <- cb_name %in% getTaskCallbackNames()
 
@@ -243,9 +241,9 @@
 }
 
 
-.msg <- function(...) {
+.msg <- function(msg = "RStudio is complete\n\n: )") {
   system(
-    paste0("msg *", ...)
+    paste("msg *", msg)
   )
   invisible()
 }
@@ -253,6 +251,37 @@
 #' opens r profile
 .rprof <- function(edit_r_profile) {
   usethis::edit_r_profile()
+}
+
+.theme <- function(color = c("default", "black", "blue", "white", "yellow")) {
+  
+  if (missing(color) {
+    res <- menu(choices = )
+  }
+  theme <- 
+    switch(
+      color,
+      black = "tomorrow night bright",
+      blue = "cobalt",
+      default = "cobalt",
+      white = "textmate (default)",
+      yellow = "solarized light"
+    )
+    current_dir <- getwd() |> tools::file_path_sans_ext() |> basename()
+    if (current_dir == "TDL-2-0")
+      rstudioapi::applyTheme()
+    # rstudioapi::applyTheme("cobalt")
+    # rstudioapi::applyTheme("solarized light")
+    # rstudioapi::applyTheme("tomorrow night bright")
+  }
+}
+
+.view <- function(x) {
+    if (missing(x)) {
+      x <- .Last.value
+    }
+    
+    htmltools::browsable(x)
 }
 
 # show list at start ----
