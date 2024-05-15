@@ -1,6 +1,6 @@
 # workspace ----
 # set working directory to file location
-.set_here <- function(generic = FALSE) {
+.set_here <- function(generic = TRUE) {
   context <- rstudioapi::getSourceEditorContext()
   location <- rstudioapi::getActiveDocumentContext()$id
 
