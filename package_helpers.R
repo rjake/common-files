@@ -10,24 +10,31 @@ devtools::load_all()
 devtools::test(filter = "package-style|summary", invert = TRUE, stop_on_failure = TRUE); .beep()
 devtools::test(filter = "package-style|summary"); beepr::beep(5);
 # check test coverage
-covr::report()
+covr::report() # if fails, restart, may also need covr::package_coverage(quiet = FALSE, clean = FALSE)
+
 # install
 devtools::install(build_vignettes = TRUE)
 # rebuild site
 pkgdown::build_site(devel = TRUE, lazy = TRUE)
+pkgdown::build_site()
 # Check if there are any package issues
-devtools::check(); beepr::beep(5);
+devtools::check(cran = TRUE); beepr::beep(5);
+# update news
+file.edit("NEWS.md")
+
+
+
 
 # other pkgdown functions commonly used
 pkgdown::build_reference()
-pkgdown::build_article(name = "")
+pkgdown::build_article(name = "Intro.Rmd")
 pkgdown::build_articles()
 
 
 
 # updating release ----
 # Bump version in DESCRIPTION:
-desc::desc_bump_version("minor")
+desc::desc_bump_version("patch")
 #Double check vignettes/reference pages in pkgdown:
 devtools::install(); pkgdown::build_site()
 # Add additional contributors/authors
@@ -51,10 +58,17 @@ devtools::check_win_devel()
 devtools::check_win_release()
 # add comments for CRAN
 rstudioapi::navigateToFile("cran-comments.md", line = 12)
+# check tags >> remotes::install_github("thinkr-open/checkhelper")
+tags <- checkhelper::find_missing_tags()
+tags |>
+  select(filename, topic, where(is.logical), starts_with("test")) |>
+  filter(test_has_export_and_return != "ok" | test_has_export_or_has_nord != "ok") |>
+  dplyr::rename_all(stringr::str_remove_all, "test_|has_") #|> names()
+
 # release to CRAN, will need to confirm an email when done
 devtools::release()
 
-
+# also helpful https://github.com/ThinkR-open/prepare-for-cran
 
 # fn web ----
 package_to_analyze <- "simplecolors"
@@ -65,12 +79,12 @@ tibble::tibble(
   exported = fn %in% unclass(lsf.str(paste0("package:", package_to_analyze), all.names = TRUE))
 )
 
-mvbutils::foodweb(
-  where = asNamespace(package_to_analyze),
-  # descendents = FALSE,
-  # ancestors = FALSE,
-  cex = 0.8,
-  # prune = "sc_within", # specific function of interest
-  # boxcolor = "grey90",
-  color.lines = TRUE
-)
+# mvbutils::foodweb(
+#   where = asNamespace(package_to_analyze),
+#   # descendents = FALSE,
+#   # ancestors = FALSE,
+#   cex = 0.8,
+#   # prune = "sc_within", # specific function of interest
+#   # boxcolor = "grey90",
+#   color.lines = TRUE
+# )

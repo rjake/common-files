@@ -1,6 +1,6 @@
 # workspace ----
 # set working directory to file location
-.set_here <- function(generic = FALSE) {
+.set_here <- function(generic = TRUE) {
   context <- rstudioapi::getSourceEditorContext()
   location <- rstudioapi::getActiveDocumentContext()$id
 
@@ -38,20 +38,26 @@
   rm(list = to_remove, envir = globalenv())
 }
 
-
 #' args to environment
 #' sends function innards to global environment
-#' highlight this code: boxplot.stats(1:100, hwy)
+#' highlight this code: boxplot.stats(1:100)
 #' run .fn_to_env() in console
+#' then run .fn_to_env(TRUE) to include defaults
+#' @examples
+#' # this becomes x = 1,2,3...
+#'   boxplot.stats(1:100)
+#'
+#' # can handle lazy eval, this example would extramt 'gear' to a symbol so
+#' # you could debug something like dplyr::count(data, cols = {{cols}})
+#'   tidyr::pivot_longer(mtcars, gear)
 .fn_to_env <- function(include_defaults = FALSE) {
   context <- rstudioapi::getSourceEditorContext()
   clean_text <- gsub("#'", "", x = context$selection[[1]]$text)
-  expr <- parse(text = clean_text)
+  expr <- rlang::parse_expr(clean_text)
+  fn <- eval(expr[[1]])
 
-  fn <- get(expr[[1]][[1]])
-
-  call_list <-
-    expr[[1]] |>
+  call_list <- # bring back all arguments as a list
+    expr |>
     as.call() |>
     rlang::call_match(
       fn = fn,
@@ -59,17 +65,30 @@
     ) |>
     as.list()
 
-  args_only <- call_list[-1]
-  arg_types <- map(args_only, is) |> map_chr(pluck, 1)
+  args_only <- call_list[-1] # drop function symbol
 
-  update_symbols <-
-    modify_if(
+  get_symbols <- # evaluate objects in environment/search path
+    purrr:::modify_if(
       .x = args_only,
-      .p = ~inherits(.x, "name") && length(.x) == 1,
-      .f = ~rlang::sym(deparse(x))
+      .p = ~exists(deparse(.x)),
+      .f = ~get(deparse(.x))
     )
 
-  update_symbols |>
+  update_symbols <- # if column names are used, deparse the arguments, need to test more
+    purrr:::modify_if(
+      .x = get_symbols,
+      .p = ~inherits(.x, "name") && length(.x) == 1,
+      .f = ~rlang::sym(deparse(.x))
+    )
+
+  eval_results <- # evaluate arguments like x = 1:100
+    purrr:::modify_if(
+      .x = update_symbols,
+      .p = ~!(inherits(.x, "name") && length(.x) == 1),
+      .f = ~eval(.x)
+    )
+
+  eval_results |>
     list2env(envir = globalenv())
 }
 
@@ -91,9 +110,43 @@
 
 
 # print ----
+#' print data frames if interactive
+.print_df <- function(enable = TRUE, ...) {
+  cb_name <- "print_df"
+  cb_exists <- cb_name %in% getTaskCallbackNames()
+
+  if (!cb_exists & enable) {
+    addTaskCallback(
+      name = cb_name,
+      function(expr, result, complete, printed, ...) {
+        if (!printed && inherits(result, "data.frame")) {
+          print(result, ...)
+        }
+        TRUE
+      }
+    )
+  } else if (cb_exists & !enable) {
+    while (cb_name %in% getTaskCallbackNames()) {
+      removeTaskCallback(cb_name)
+    }
+  }
+}
+
 #' print all rows
+#' needs to override and re-establish .print_df()
 .print <- function(x) {
+  cb_name <- "print_df"
+  has_print_df <- cb_name %in% getTaskCallbackNames()
+
+  if (has_print_df) {
+    removeTaskCallback(cb_name)
+  }
+
   print(x, n = Inf)
+
+  if (has_print_df) {
+    invisible(.print_df())
+  }
 }
 
 #' show one or more records vertically
@@ -128,17 +181,58 @@
   rstudioapi::navigateToFile("~/github/common-files/package_helpers.R")
 }
 
+
+.covr <- function() {
+  covr::report(covr::package_coverage())
+}
+
 #' runs these two functions together
 .devload <- function() {
   devtools::document()
   devtools::load_all()
+  library(testthat)
+  library(mockery)
 }
 
 
 # other ----
-#' opens r profile
-.rprof <- function(edit_r_profile) {
-  usethis::edit_r_profile()
+
+.alerts <- function(enable = TRUE) {
+  cb_name <- "use_alert"
+  cb_exists <- cb_name %in% getTaskCallbackNames()
+
+  # identify the default error message: in RStudio: Debug > On Error > Error Inspector
+  # options()$error
+  default_error <- function() {
+    .rs.recordTraceback(FALSE, 5, .rs.enqueueError)
+  }
+
+  if (enable & cb_exists) {
+    return(message("alerts: already on"))
+  }
+
+  # enable if not on
+  if (!cb_exists & enable) {
+    options(error = function() beepr::beep(9))
+
+    addTaskCallback(
+      function(expr, result, complete, printed, ...) {
+        beepr::beep(5)
+        TRUE
+      },
+      name = cb_name
+    )
+    return(message("alerts: on"))
+  }
+
+  # deactivate if on
+  if (cb_exists & !enable) {
+    while (cb_name %in% getTaskCallbackNames()) {
+      removeTaskCallback(cb_name)
+    }
+    options(error = default_error)
+    return(message("alerts: off"))
+  }
 }
 
 #' creates beep
@@ -146,41 +240,49 @@
   beepr::beep(5)
 }
 
-.alerts <- function(activate = TRUE) {
-  alert_active <- ("beep" %in% getTaskCallbackNames())
 
-  if (activate & alert_active) {
-    return(message("alerts: already on"))
+.msg <- function(msg = "RStudio is complete\n\n: )") {
+  system(
+    paste("msg *", msg)
+  )
+  invisible()
+}
+
+#' opens r profile
+.rprof <- function(edit_r_profile) {
+  usethis::edit_r_profile()
+}
+
+.theme <- function(color = c("default", "black", "blue", "white", "yellow")) {
+  
+  if (missing(color) {
+    res <- menu(choices = )
   }
-
-  # activate if not on
-  if (activate & !alert_active) {
-    options(error = function() beepr::beep(9))
-
-    addTaskCallback(
-     function(expr, value, ok, visible) {
-       beepr::beep(5)
-       TRUE
-     },
-     name = "beep"
+  theme <- 
+    switch(
+      color,
+      black = "tomorrow night bright",
+      blue = "cobalt",
+      default = "cobalt",
+      white = "textmate (default)",
+      yellow = "solarized light"
     )
-    return(message("alerts: on"))
-  }
-
-  # deactivate if on
-  if (!activate & alert_active) {
-    while ("beep" %in% getTaskCallbackNames()) {
-      removeTaskCallback("beep")
-    }
-    return(
-      message(
-        "alerts: off\n",
-        "To reset options(error): Debug > On Error > Error Inspector"
-      )
-    )
+    current_dir <- getwd() |> tools::file_path_sans_ext() |> basename()
+    if (current_dir == "TDL-2-0")
+      rstudioapi::applyTheme()
+    # rstudioapi::applyTheme("cobalt")
+    # rstudioapi::applyTheme("solarized light")
+    # rstudioapi::applyTheme("tomorrow night bright")
   }
 }
 
+.view <- function(x) {
+    if (missing(x)) {
+      x <- .Last.value
+    }
+    
+    htmltools::browsable(x)
+}
 
 # show list at start ----
 #' prints list of functions in this file
@@ -200,6 +302,8 @@
     )
   )
 }
+
+.print_df()
 
 
 
@@ -256,4 +360,3 @@
 #   )
 #
 #   rstudioapi::navigateToFile(file)
-# }
