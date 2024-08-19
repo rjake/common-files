@@ -3,16 +3,16 @@
 .set_here <- function(generic = TRUE) {
   context <- rstudioapi::getSourceEditorContext()
   location <- rstudioapi::getActiveDocumentContext()$id
-
+  
   if (generic) {
     wd <- "setwd(dirname(.rs.api.getSourceEditorContext()$path))\n\n"
   } else {
     wd <- paste0('setwd("', dirname(context$path), '")\n\n')
   }
-
+  
   is_console <- (location  == "#console")
-
-
+  
+  
   if (is_console) {
     rstudioapi::sendToConsole(
       code = wd,
@@ -55,7 +55,7 @@
   clean_text <- gsub("#'", "", x = context$selection[[1]]$text)
   expr <- rlang::parse_expr(clean_text)
   fn <- eval(expr[[1]])
-
+  
   call_list <- # bring back all arguments as a list
     expr |>
     as.call() |>
@@ -64,30 +64,30 @@
       defaults = include_defaults
     ) |>
     as.list()
-
+  
   args_only <- call_list[-1] # drop function symbol
-
+  
   get_symbols <- # evaluate objects in environment/search path
     purrr:::modify_if(
       .x = args_only,
       .p = ~exists(deparse(.x)),
       .f = ~get(deparse(.x))
     )
-
+  
   update_symbols <- # if column names are used, deparse the arguments, need to test more
     purrr:::modify_if(
       .x = get_symbols,
       .p = ~inherits(.x, "name") && length(.x) == 1,
       .f = ~rlang::sym(deparse(.x))
     )
-
+  
   eval_results <- # evaluate arguments like x = 1:100
     purrr:::modify_if(
       .x = update_symbols,
       .p = ~!(inherits(.x, "name") && length(.x) == 1),
       .f = ~eval(.x)
     )
-
+  
   eval_results |>
     list2env(envir = globalenv())
 }
@@ -114,7 +114,7 @@
 .print_df <- function(enable = TRUE, ...) {
   cb_name <- "print_df"
   cb_exists <- cb_name %in% getTaskCallbackNames()
-
+  
   if (!cb_exists & enable) {
     addTaskCallback(
       name = cb_name,
@@ -137,13 +137,13 @@
 .print <- function(x) {
   cb_name <- "print_df"
   has_print_df <- cb_name %in% getTaskCallbackNames()
-
+  
   if (has_print_df) {
     removeTaskCallback(cb_name)
   }
-
+  
   print(x, n = Inf)
-
+  
   if (has_print_df) {
     invisible(.print_df())
   }
@@ -200,21 +200,21 @@
 .alerts <- function(enable = TRUE) {
   cb_name <- "use_alert"
   cb_exists <- cb_name %in% getTaskCallbackNames()
-
+  
   # identify the default error message: in RStudio: Debug > On Error > Error Inspector
   # options()$error
   default_error <- function() {
     .rs.recordTraceback(FALSE, 5, .rs.enqueueError)
   }
-
+  
   if (enable & cb_exists) {
     return(message("alerts: already on"))
   }
-
+  
   # enable if not on
   if (!cb_exists & enable) {
     options(error = function() beepr::beep(9))
-
+    
     addTaskCallback(
       function(expr, result, complete, printed, ...) {
         beepr::beep(5)
@@ -224,7 +224,7 @@
     )
     return(message("alerts: on"))
   }
-
+  
   # deactivate if on
   if (cb_exists & !enable) {
     while (cb_name %in% getTaskCallbackNames()) {
@@ -267,21 +267,21 @@
       white = "textmate (default)",
       yellow = "solarized light"
     )
-    current_dir <- getwd() |> tools::file_path_sans_ext() |> basename()
-    if (current_dir == "TDL-2-0")
-      rstudioapi::applyTheme()
-    # rstudioapi::applyTheme("cobalt")
-    # rstudioapi::applyTheme("solarized light")
-    # rstudioapi::applyTheme("tomorrow night bright")
+  current_dir <- getwd() |> tools::file_path_sans_ext() |> basename()
+  if (current_dir == "TDL-2-0")
+    rstudioapi::applyTheme()
+  # rstudioapi::applyTheme("cobalt")
+  # rstudioapi::applyTheme("solarized light")
+  # rstudioapi::applyTheme("tomorrow night bright")
   }
 }
 
 .view <- function(x) {
-    if (missing(x)) {
-      x <- .Last.value
-    }
-    
-    htmltools::browsable(x)
+  if (missing(x)) {
+    x <- .Last.value
+  }
+  
+  htmltools::browsable(x)
 }
 
 # show list at start ----
@@ -293,7 +293,7 @@
     stringr::str_extract(fn_code, "^[^\\{]*"),
     " <- function"
   )
-
+  
   # stringr::str_remove_all(fn_code, " .*|\\n|\\}")
   message("\nYou added these functions:")
   print(
