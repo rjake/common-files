@@ -93,8 +93,12 @@
 }
 
 # quarto ----
-.render_quarto  <- function(x = rstudioapi::getSourceEditorContext()$path) {
-  quarto::quarto_render(x, output_format = "all")
+.quarto_preview  <- function(file = rstudioapi::getSourceEditorContext()$path) {
+  stopifnot(
+    "file is not a .qmd document" = grepl("(?i)qmd$", file)
+  )
+  
+  quarto::quarto_preview(file)
 }
 
 # reprex ----
@@ -109,7 +113,32 @@
 }
 
 
-# print ----
+# table fns ----
+#' find rows with duplicate values
+#' @examples
+#' .dupes(df = head(mpg), class, year, displ)
+#' .dupes(df = head(storms), day)
+.dupes <- function(df, ...) {
+  require(dplyr)
+  
+  # comes from  dplyr:::select.data.frame
+  keep_cols <- tidyselect::eval_select(expr(c(...)), data = df)
+
+  df |>
+    filter(.by = c(...), n() > 1) |>
+    group_split(...) |> #...) |>
+    map(
+      ~.x |>
+        select(
+          names(keep_cols),
+          where(~n_distinct(.x) > 1)
+        ) |>
+        mutate_all(~str_trunc(.x, 36))
+    )
+    
+}
+
+
 #' print data frames if interactive
 .print_df <- function(enable = TRUE, ...) {
   cb_name <- "print_df"
@@ -255,9 +284,12 @@
 
 .theme <- function(color = c("default", "black", "blue", "white", "yellow")) {
   
-  if (missing(color) {
-    res <- menu(choices = )
+  if (missing(color)) {
+    color_options <- formals(.theme)$color |> eval()
+    res <- menu(choices = color_options)
+    color <- color_options[res]
   }
+  
   theme <- 
     switch(
       color,
@@ -267,13 +299,8 @@
       white = "textmate (default)",
       yellow = "solarized light"
     )
-  current_dir <- getwd() |> tools::file_path_sans_ext() |> basename()
-  if (current_dir == "TDL-2-0")
-    rstudioapi::applyTheme()
-  # rstudioapi::applyTheme("cobalt")
-  # rstudioapi::applyTheme("solarized light")
-  # rstudioapi::applyTheme("tomorrow night bright")
-  }
+
+  rstudioapi::applyTheme(theme)
 }
 
 .view <- function(x) {
