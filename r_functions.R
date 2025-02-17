@@ -1,18 +1,22 @@
 # workspace ----
 # set working directory to file location
+.here <- function() {
+  .rs.api.getSourceEditorContext()$path
+}
+
 .set_here <- function(generic = TRUE) {
   context <- rstudioapi::getSourceEditorContext()
   location <- rstudioapi::getActiveDocumentContext()$id
-  
+
   if (generic) {
     wd <- "setwd(dirname(.rs.api.getSourceEditorContext()$path))\n\n"
   } else {
     wd <- paste0('setwd("', dirname(context$path), '")\n\n')
   }
-  
+
   is_console <- (location  == "#console")
-  
-  
+
+
   if (is_console) {
     rstudioapi::sendToConsole(
       code = wd,
@@ -55,7 +59,7 @@
   clean_text <- gsub("#'", "", x = context$selection[[1]]$text)
   expr <- rlang::parse_expr(clean_text)
   fn <- eval(expr[[1]])
-  
+
   call_list <- # bring back all arguments as a list
     expr |>
     as.call() |>
@@ -64,40 +68,49 @@
       defaults = include_defaults
     ) |>
     as.list()
-  
+
   args_only <- call_list[-1] # drop function symbol
-  
+
   get_symbols <- # evaluate objects in environment/search path
     purrr:::modify_if(
       .x = args_only,
       .p = ~exists(deparse(.x)),
       .f = ~get(deparse(.x))
     )
-  
+
   update_symbols <- # if column names are used, deparse the arguments, need to test more
     purrr:::modify_if(
       .x = get_symbols,
       .p = ~inherits(.x, "name") && length(.x) == 1,
       .f = ~rlang::sym(deparse(.x))
     )
-  
+
   eval_results <- # evaluate arguments like x = 1:100
     purrr:::modify_if(
       .x = update_symbols,
       .p = ~!(inherits(.x, "name") && length(.x) == 1),
       .f = ~eval(.x)
     )
-  
+
   eval_results |>
     list2env(envir = globalenv())
 }
 
 # quarto ----
+.render_rmd <- function(file = rstudioapi::getSourceEditorContext()$path) {
+  rmarkdown::run(
+    normalizePath(file),
+   # shiny_args = list(launch.browser = FALSE),
+    auto_reload = TRUE,
+    render_args = list(encoding = 'UTF-8')
+  )
+}
+
 .quarto_preview  <- function(file = rstudioapi::getSourceEditorContext()$path) {
   stopifnot(
     "file is not a .qmd document" = grepl("(?i)qmd$", file)
   )
-  
+
   quarto::quarto_preview(file)
 }
 
@@ -120,7 +133,7 @@
 #' .dupes(df = head(storms), day)
 .dupes <- function(df, ...) {
   require(dplyr)
-  
+
   # comes from  dplyr:::select.data.frame
   keep_cols <- tidyselect::eval_select(expr(c(...)), data = df)
 
@@ -135,21 +148,39 @@
         ) |>
         mutate_all(~str_trunc(.x, 36))
     )
-    
+
 }
 
+#' @examples
+#' .missing_records(slice(airquality, 1:3), slice(airquality, 2:4), Day) 
+.missing_records <- function(x, y, ...) {
+  x_name <- match.call()$x
+  y_name <- match.call()$y
+  bind_rows(
+    "{{x_name}}" := x,
+    "{{y_name}}" := y,
+    .id = "only_in"
+  ) |> 
+    mutate(
+      .by = only_in,
+      .after = only_in,
+      row_no = row_number()
+    ) |> 
+    filter(.by = c(...), n() == 1) 
+}
 
 #' print data frames if interactive
 .print_df <- function(enable = TRUE, ...) {
   cb_name <- "print_df"
   cb_exists <- cb_name %in% getTaskCallbackNames()
-  
+
   if (!cb_exists & enable) {
     addTaskCallback(
       name = cb_name,
       function(expr, result, complete, printed, ...) {
-        if (!printed && inherits(result, "data.frame")) {
-          print(result, ...)
+        #print_added <- as.character(expr[[1]]) == "print"
+        if (!printed && inherits(result, "data.frame")) { #!print_added &&
+         print(result, ...)
         }
         TRUE
       }
@@ -166,13 +197,13 @@
 .print <- function(x) {
   cb_name <- "print_df"
   has_print_df <- cb_name %in% getTaskCallbackNames()
-  
+
   if (has_print_df) {
     removeTaskCallback(cb_name)
   }
-  
+
   print(x, n = Inf)
-  
+
   if (has_print_df) {
     invisible(.print_df())
   }
@@ -229,21 +260,21 @@
 .alerts <- function(enable = TRUE) {
   cb_name <- "use_alert"
   cb_exists <- cb_name %in% getTaskCallbackNames()
-  
+
   # identify the default error message: in RStudio: Debug > On Error > Error Inspector
   # options()$error
   default_error <- function() {
     .rs.recordTraceback(FALSE, 5, .rs.enqueueError)
   }
-  
+
   if (enable & cb_exists) {
     return(message("alerts: already on"))
   }
-  
+
   # enable if not on
   if (!cb_exists & enable) {
     options(error = function() beepr::beep(9))
-    
+
     addTaskCallback(
       function(expr, result, complete, printed, ...) {
         beepr::beep(5)
@@ -253,7 +284,7 @@
     )
     return(message("alerts: on"))
   }
-  
+
   # deactivate if on
   if (cb_exists & !enable) {
     while (cb_name %in% getTaskCallbackNames()) {
@@ -283,14 +314,14 @@
 }
 
 .theme <- function(color = c("default", "black", "blue", "white", "yellow")) {
-  
+
   if (missing(color)) {
     color_options <- formals(.theme)$color |> eval()
     res <- menu(choices = color_options)
     color <- color_options[res]
   }
-  
-  theme <- 
+
+  theme <-
     switch(
       color,
       black = "tomorrow night bright",
@@ -307,7 +338,7 @@
   if (missing(x)) {
     x <- .Last.value
   }
-  
+
   htmltools::browsable(x)
 }
 
@@ -320,7 +351,7 @@
     stringr::str_extract(fn_code, "^[^\\{]*"),
     " <- function"
   )
-  
+
   # stringr::str_remove_all(fn_code, " .*|\\n|\\}")
   message("\nYou added these functions:")
   print(
