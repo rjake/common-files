@@ -1,28 +1,30 @@
 # for each PR ----
 # restart R
 rm(list = ls());.rs.restartR();
+
+# confirm status of renv
+renv::status()
+
 # Update documentation (NAMESPACE) for functions
 devtools::document() # devtools::install_version("roxygen2", version = "7.1.2", repos = "http://cran.us.r-project.org")
 # Load functions
 devtools::load_all()
 # Run tests first without package style
 # devtools::test(); .beep()
-devtools::test(filter = "package-style|summary", invert = TRUE, stop_on_failure = TRUE); .beep()
-devtools::test(filter = "package-style|summary"); beepr::beep(5);
+devtools::test(filter = "package-style|summary", invert = TRUE, stop_on_failure = TRUE); system("msg * pkg tests are done")
+devtools::test(filter = "package-style|summary"); system("msg * pkg tests are done")
 # check test coverage
 covr::report() # if fails, restart, may also need covr::package_coverage(quiet = FALSE, clean = FALSE)
 
 # install
 devtools::install(build_vignettes = TRUE)
 # rebuild site
-pkgdown::build_site(devel = TRUE, lazy = TRUE)
-pkgdown::build_site()
+pkgdown::build_site(devel = TRUE, lazy = TRUE); system("msg * pkg site is done")
+#pkgdown::build_site()
 # Check if there are any package issues
-devtools::check(cran = TRUE); beepr::beep(5);
+devtools::check(cran = TRUE); beepr::beep(5); system("msg * pkg checks complete")
 # update news
 file.edit("NEWS.md")
-
-
 
 
 # other pkgdown functions commonly used
