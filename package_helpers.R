@@ -1,9 +1,9 @@
 # for each PR ----
 # restart R
-rm(list = ls());.rs.restartR();
-
+rm(list = ls())
+.rs.restartR()
 # confirm status of renv
-renv::status()
+renv::status(dev = TRUE)
 
 # Update documentation (NAMESPACE) for functions
 devtools::document() # devtools::install_version("roxygen2", version = "7.1.2", repos = "http://cran.us.r-project.org")
@@ -11,18 +11,32 @@ devtools::document() # devtools::install_version("roxygen2", version = "7.1.2", 
 devtools::load_all()
 # Run tests first without package style
 # devtools::test(); .beep()
-devtools::test(filter = "package-style|summary", invert = TRUE, stop_on_failure = TRUE); system("msg * pkg tests are done")
-devtools::test(filter = "package-style|summary"); system("msg * pkg tests are done")
+devtools::test(stop_on_failure = TRUE) # filter = "package-style|summary", invert = TRUE,
+system("msg * pkg tests are done")
+# devtools::test(filter = "package-style|summary")
+system("msg * pkg tests are done")
 # check test coverage
-covr::report() # if fails, restart, may also need covr::package_coverage(quiet = FALSE, clean = FALSE)
+.rs.restartR()
+x <- covr::report() # if fails, restart, may also need covr::package_coverage(quiet = FALSE, clean = FALSE)
+covr::report(x)
 
 # install
 devtools::install(build_vignettes = TRUE)
+# build readme from Rmd if applicable
+devtools::build_readme()
+# fs::dir_copy("README_files", "docs")
 # rebuild site
-pkgdown::build_site(devel = TRUE, lazy = TRUE); system("msg * pkg site is done")
-#pkgdown::build_site()
-# Check if there are any package issues
-devtools::check(cran = TRUE); beepr::beep(5); system("msg * pkg checks complete")
+pkgdown::build_site(devel = TRUE, lazy = TRUE)
+# confirm styling applied
+pkgdown::init_site()
+pkgdown::preview_site()
+system("msg * pkg site is done")
+
+#  Check if there are any package issues
+devtools::check(env_vars = c("_R_CHECK_SYSTEM_CLOCK_" = 0), vignettes = !FALSE) # cran = TRUE)
+system("msg * pkg checks complete")
+
+
 # update news
 file.edit("NEWS.md")
 
@@ -37,8 +51,9 @@ pkgdown::build_articles()
 # updating release ----
 # Bump version in DESCRIPTION:
 desc::desc_bump_version("patch")
-#Double check vignettes/reference pages in pkgdown:
-devtools::install(); pkgdown::build_site()
+# Double check vignettes/reference pages in pkgdown:
+devtools::install()
+pkgdown::build_site()
 # Add additional contributors/authors
 file.edit("DESCRIPTION")
 # Double check _pkgdown.yml for new functions
