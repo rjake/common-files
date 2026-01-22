@@ -19,6 +19,15 @@ if (TRUE) {
   .custom_functions()
 }
 
+# add this to quarto docs, etc if needed for debugging
+dump_and_quit <- function() {
+  # Save debugging info to file last.dump.rda
+  dump.frames(to.file = TRUE)
+  # Quit R with error status
+  q(status = 1)
+}
+options(error = dump_and_quit)
+
 
 # print a fun message
 setHook("rstudio.sessionInit", function(newSession) {
